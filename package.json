@@ -20,7 +20,10 @@
     "seed:assistant-test": "node node_modules/tsx/dist/cli.mjs packages/server/src/cli/seedAssistantTest.ts",
     "seed:chips-test": "node node_modules/tsx/dist/cli.mjs packages/server/src/cli/seedAssistantTest.ts",
     "seed:data-access-test": "node node_modules/tsx/dist/cli.mjs scripts/seedDataAccessTest.ts",
-    "seed:multi-tenant-test": "node node_modules/tsx/dist/cli.mjs scripts/seedMultiTenantTest.ts"
+    "seed:multi-tenant-test": "node node_modules/tsx/dist/cli.mjs scripts/seedMultiTenantTest.ts",
+    "avatar:inspect": "node node_modules/tsx/dist/cli.mjs scripts/inspectAvatar.ts",
+    "guides:check": "node node_modules/tsx/dist/cli.mjs scripts/checkGuides.ts",
+    "seed:guide-test": "node node_modules/tsx/dist/cli.mjs scripts/seedGuideTest.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -112,7 +115,6 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.25.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2"

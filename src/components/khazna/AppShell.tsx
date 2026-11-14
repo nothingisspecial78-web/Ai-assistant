@@ -72,24 +72,24 @@ function useNav(role: Role, sectorSlug: SectorSlug): { title: string; items: Nav
       {
         title: "Overview",
         items: [
-          { label: "Dashboard", icon: LayoutDashboard, render: (p) => <Link to="/admin" activeOptions={{ exact: true }} {...p} /> },
-          { label: "Audit Log", icon: ScrollText, render: (p) => <Link to="/admin/audit" {...p} /> },
-          { label: "Issued Reports", icon: FileCheck, render: (p) => <Link to="/admin/issued-reports" {...p} /> },
+          { label: "Dashboard", icon: LayoutDashboard, render: (p) => <Link to="/admin" data-guide-id="nav-dashboard" activeOptions={{ exact: true }} {...p} /> },
+          { label: "Audit Log", icon: ScrollText, render: (p) => <Link to="/admin/audit" data-guide-id="nav-audit" {...p} /> },
+          { label: "Issued Reports", icon: FileCheck, render: (p) => <Link to="/admin/issued-reports" data-guide-id="nav-reports" {...p} /> },
         ],
       },
       {
         title: "People",
         items: [
-          { label: "Student Directory", icon: Users, render: (p) => <Link to="/admin/students" activeOptions={{ exact: true }} {...p} /> },
-          { label: "Bulk Import", icon: Upload, render: (p) => <Link to="/admin/students/import" {...p} /> },
-          { label: "Admins", icon: UserCog, render: (p) => <Link to="/admin/admins" {...p} /> },
+          { label: "Student Directory", icon: Users, render: (p) => <Link to="/admin/students" data-guide-id="nav-students" activeOptions={{ exact: true }} {...p} /> },
+          { label: "Bulk Import", icon: Upload, render: (p) => <Link to="/admin/students/import" data-guide-id="nav-students-import" {...p} /> },
+          { label: "Admins", icon: UserCog, render: (p) => <Link to="/admin/admins" data-guide-id="nav-admins" {...p} /> },
         ],
       },
       {
         title: "Structure",
         items: [
-          { label: "Institution Profile", icon: Building2, render: (p) => <Link to="/admin/institution" {...p} /> },
-          { label: "Sectors & Classes", icon: Layers, render: (p) => <Link to="/admin/sectors" {...p} /> },
+          { label: "Institution Profile", icon: Building2, render: (p) => <Link to="/admin/institution" data-guide-id="nav-institution" {...p} /> },
+          { label: "Sectors & Classes", icon: Layers, render: (p) => <Link to="/admin/sectors" data-guide-id="nav-sectors" {...p} /> },
         ],
       },
     ];
@@ -100,22 +100,22 @@ function useNav(role: Role, sectorSlug: SectorSlug): { title: string; items: Nav
       {
         title: "Sector",
         items: [
-          { label: "Overview", icon: LayoutDashboard, render: (lp) => <Link to="/m/$sectorSlug" params={p} activeOptions={{ exact: true }} {...lp} /> },
-          { label: "Ledger", icon: ReceiptText, render: (lp) => <Link to="/m/$sectorSlug/ledger" params={p} {...lp} /> },
-          { label: "Bulk Entry", icon: ListChecks, badge: "New", render: (lp) => <Link to="/m/$sectorSlug/bulk" params={p} {...lp} /> },
+          { label: "Overview", icon: LayoutDashboard, render: (lp) => <Link to="/m/$sectorSlug" params={p} data-guide-id="nav-manager-overview" activeOptions={{ exact: true }} {...lp} /> },
+          { label: "Ledger", icon: ReceiptText, render: (lp) => <Link to="/m/$sectorSlug/ledger" params={p} data-guide-id="nav-manager-ledger" {...lp} /> },
+          { label: "Bulk Entry", icon: ListChecks, badge: "New", render: (lp) => <Link to="/m/$sectorSlug/bulk" params={p} data-guide-id="nav-manager-bulk" {...lp} /> },
         ],
       },
       {
         title: "Records",
         items: [
-          { label: "Class Reports", icon: BarChart3, render: (lp) => <Link to="/m/$sectorSlug/reports" params={p} {...lp} /> },
-          { label: "Batches", icon: FileSpreadsheet, render: (lp) => <Link to="/m/$sectorSlug/batches" params={p} {...lp} /> },
+          { label: "Class Reports", icon: BarChart3, render: (lp) => <Link to="/m/$sectorSlug/reports" params={p} data-guide-id="nav-manager-reports" {...lp} /> },
+          { label: "Batches", icon: FileSpreadsheet, render: (lp) => <Link to="/m/$sectorSlug/batches" params={p} data-guide-id="nav-manager-batches" {...lp} /> },
         ],
       },
     ];
   }
   return [
-    { title: "Me", items: [{ label: "Overview", icon: LayoutDashboard, render: (p) => <Link to="/app" activeOptions={{ exact: true }} {...p} /> }] },
+    { title: "Me", items: [{ label: "Overview", icon: LayoutDashboard, render: (p) => <Link to="/app" data-guide-id="nav-student-overview" activeOptions={{ exact: true }} {...p} /> }] },
     {
       title: "My Ledgers",
       items: sectors.map((s) => ({
@@ -128,8 +128,8 @@ function useNav(role: Role, sectorSlug: SectorSlug): { title: string; items: Nav
     {
       title: "Account",
       items: [
-        { label: "Notifications", icon: Bell, badge: unread ? String(unread) : undefined, render: (p) => <Link to="/app/notifications" {...p} /> },
-        { label: "Profile", icon: UserRound, render: (p) => <Link to="/app/profile" {...p} /> },
+        { label: "Notifications", icon: Bell, badge: unread ? String(unread) : undefined, render: (p) => <Link to="/app/notifications" data-guide-id="nav-student-notifications" {...p} /> },
+        { label: "Profile", icon: UserRound, render: (p) => <Link to="/app/profile" data-guide-id="nav-student-profile" {...p} /> },
       ],
     },
   ];
@@ -384,6 +384,7 @@ export function AppShell({ role, sectorSlug, children }: { role: Role; sectorSlu
           <button
             className="glass-inset grid size-11 shrink-0 place-items-center rounded-xl text-foreground hover:bg-accent transition-colors lg:hidden"
             onClick={() => setAestheticMenuOpen(true)}
+            data-guide-id="mobile-menu-button"
             aria-label="Open menu"
           >
             <MoreVertical className="size-5 text-muted-foreground hover:text-foreground" />
@@ -858,6 +859,7 @@ function MobileBottomNav({
                   whileTap={{ scale: 0.88 }}
                   whileHover={{ scale: 1.08 }}
                   type="button"
+                  data-guide-id="quick-action-button"
                   onClick={item.onClick}
                   aria-label={quickActionOpen ? "Close actions" : item.label}
                   className="relative -mt-5 flex size-12 shrink-0 items-center justify-center rounded-full bg-gradient-primary text-primary-foreground shadow-glow border-2 border-background/90 transition-transform focus:outline-none"

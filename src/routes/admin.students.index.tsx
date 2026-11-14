@@ -101,7 +101,7 @@ function StudentsPage() {
                 <Upload /> Bulk import
               </Link>
             </Btn>
-            <Btn variant="primary" onClick={() => setAdding(true)}>
+            <Btn variant="primary" data-guide-id="students-add-button" onClick={() => setAdding(true)}>
               <Plus /> Add student
             </Btn>
           </>
@@ -109,7 +109,9 @@ function StudentsPage() {
       />
 
       <motion.div {...reveal()} className="glass mb-4 flex flex-col gap-3 p-3 lg:flex-row lg:items-center w-full">
-        <SearchInput value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search by name, Ad.No or phone…" className="lg:w-80" />
+        <div data-guide-id="students-search-input" className="lg:w-80">
+          <SearchInput value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search by name, Ad.No or phone…" />
+        </div>
         <div className="flex flex-wrap gap-1.5">
           {["All", ...classes].map((c) => (
             <FilterChip key={c} active={cls === c} onClick={() => { setCls(c); setPage(1); }}>

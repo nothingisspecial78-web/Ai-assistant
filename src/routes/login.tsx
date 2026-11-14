@@ -264,6 +264,7 @@ function LoginPage() {
               <button
                 key={m}
                 type="button"
+                data-guide-id={m === "signin" ? "auth-tab-signin" : "auth-tab-signup"}
                 onClick={() => {
                   setMode(m);
                   setError("");
@@ -316,6 +317,7 @@ function LoginPage() {
                           <button
                             key={r}
                             type="button"
+                            data-guide-id={`login-role-${r}`}
                             onClick={() => choose(r)}
                             className={cn(
                               "flex flex-col items-center gap-1 rounded-xl border px-1.5 py-1.5 text-center transition-all sm:gap-1.5 sm:px-2 sm:py-3",
@@ -347,6 +349,7 @@ function LoginPage() {
                                 <input
                                   value={user}
                                   onChange={(e) => setUser(e.target.value)}
+                                  data-guide-id="login-student-admission"
                                   className="k-input pl-9 uppercase"
                                   placeholder="e.g. S0125"
                                   autoComplete="username"
@@ -364,6 +367,7 @@ function LoginPage() {
                                     value={user}
                                     onChange={(e) => setUser(e.target.value)}
                                     type="email"
+                                    data-guide-id="login-email"
                                     className="k-input pl-9"
                                     placeholder="you@college.edu"
                                     autoComplete="username"
@@ -379,6 +383,8 @@ function LoginPage() {
                                     value={pass}
                                     onChange={(e) => setPass(e.target.value)}
                                     type={show ? "text" : "password"}
+                                    data-guide-id="login-password"
+                                    data-guide-sensitive="true"
                                     className="k-input px-9"
                                     autoComplete="current-password"
                                   />
@@ -411,6 +417,7 @@ function LoginPage() {
                           <input
                             value={su.college}
                             onChange={(e) => setSu({ ...su, college: e.target.value })}
+                            data-guide-id="signup-college"
                             className="k-input pl-9"
                             placeholder="e.g. Al Noor Arts College"
                           />
@@ -422,6 +429,7 @@ function LoginPage() {
                           <input
                             value={su.name}
                             onChange={(e) => setSu({ ...su, name: e.target.value })}
+                            data-guide-id="signup-name"
                             className="k-input pl-9"
                             placeholder="Principal or accounts head"
                           />
@@ -436,6 +444,7 @@ function LoginPage() {
                             value={su.email}
                             onChange={(e) => setSu({ ...su, email: e.target.value })}
                             type="email"
+                            data-guide-id="signup-email"
                             className="k-input pl-9"
                             placeholder="you@college.edu"
                             autoComplete="email"
@@ -449,6 +458,8 @@ function LoginPage() {
                           value={su.password}
                           onChange={(e) => setSu({ ...su, password: e.target.value })}
                           type="password"
+                          data-guide-id="signup-password"
+                          data-guide-sensitive="true"
                           className="k-input"
                           placeholder="8+ characters"
                           autoComplete="new-password"
@@ -459,6 +470,8 @@ function LoginPage() {
                           value={su.confirm}
                           onChange={(e) => setSu({ ...su, confirm: e.target.value })}
                           type="password"
+                          data-guide-id="signup-confirm"
+                          data-guide-sensitive="true"
                           className="k-input"
                           autoComplete="new-password"
                         />
@@ -502,6 +515,7 @@ function LoginPage() {
                     type="submit"
                     variant="primary"
                     size="md"
+                    data-guide-id={mode === "signin" ? "login-submit" : "signup-submit"}
                     className={cn(
                       "relative h-10 w-full overflow-hidden text-sm sm:h-12 sm:text-base",
                       phase !== "idle" && "brightness-110",

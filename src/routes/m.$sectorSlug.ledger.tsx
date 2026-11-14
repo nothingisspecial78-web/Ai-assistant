@@ -91,7 +91,7 @@ function LedgerPage() {
             >
               <Download /> Export
             </Btn>
-            <Btn variant="primary" onClick={() => setEntryOpen(true)}>
+            <Btn variant="primary" data-guide-id="ledger-new-entry-button" onClick={() => setEntryOpen(true)}>
               <Plus /> New entry
             </Btn>
           </>
@@ -100,7 +100,9 @@ function LedgerPage() {
 
       <motion.div {...reveal()} className="glass mb-4 space-y-3 p-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <SearchInput value={q} onChange={(v) => { setQ(v); reset(); }} placeholder="Student, Ad.No, title or receipt…" className="lg:flex-1" />
+          <div data-guide-id="ledger-search-input" className="lg:flex-1">
+            <SearchInput value={q} onChange={(v) => { setQ(v); reset(); }} placeholder="Student, Ad.No, title or receipt…" />
+          </div>
           <Segmented
             value={type}
             onChange={(v) => { setType(v); reset(); }}

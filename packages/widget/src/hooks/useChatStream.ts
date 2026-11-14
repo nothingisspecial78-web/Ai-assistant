@@ -64,6 +64,7 @@ export interface UseChatStreamOptions {
   onAppCommand?: (command: string, payload: Record<string, unknown>) => void;
   onActionCompleted?: (action: ActionLogEntry) => void;
   onUiAction?: () => void;
+  onStartGuide?: (guideId: string, startStep?: string) => void;
   onMessagesChange?: (messages: WidgetMessage[]) => void;
 }
 
@@ -78,6 +79,7 @@ export function useChatStream({
   onAppCommand,
   onActionCompleted,
   onUiAction,
+  onStartGuide,
   onMessagesChange,
 }: UseChatStreamOptions) {
   const [messages, setMessages] = useState<WidgetMessage[]>(() => initialMessages || []);
@@ -447,6 +449,9 @@ export function useChatStream({
                     return { ...m, content: '', statusLabel: 'Reconnecting provider…' };
                   case 'follow_up_chips':
                     return { ...m, followUpChips: event.chips };
+                  case 'start_guide':
+                    onStartGuide?.(event.guideId, event.startStep);
+                    return m;
                   case 'done':
                     return {
                       ...m,

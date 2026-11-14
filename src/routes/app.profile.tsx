@@ -62,7 +62,7 @@ function ProfilePage() {
     <div>
       <PageHeader eyebrow="Account" title="My profile" />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[22rem_1fr] w-full">
-        <GlassCard className="p-6 text-center">
+        <GlassCard data-guide-id="student-profile-card" className="p-6 text-center">
           <div className="mx-auto w-fit rounded-full bg-gradient-primary p-1 shadow-glow">
             <Avatar name={me.name} size={96} className="border-4 border-background" />
           </div>

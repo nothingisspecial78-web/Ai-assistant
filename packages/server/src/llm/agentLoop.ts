@@ -733,6 +733,13 @@ export async function runChatAgent(params: {
               appCommand: result.uiAction.appCommand,
               label: result.uiAction.label,
             });
+            if (tool.name === 'start_guide') {
+              emit({
+                type: 'start_guide',
+                guideId: String(cleanArgs.guideId || ''),
+                startStep: typeof cleanArgs.startStep === 'string' ? cleanArgs.startStep : undefined,
+              });
+            }
           }
           if (result.formRequest) {
             emit({ type: 'form_request', form: result.formRequest });
@@ -933,6 +940,13 @@ export async function runChatAgent(params: {
             appCommand: result.uiAction.appCommand,
             label: result.uiAction.label,
           });
+          if (tool.name === 'start_guide') {
+            emit({
+              type: 'start_guide',
+              guideId: String(cleanArgs.guideId || ''),
+              startStep: typeof cleanArgs.startStep === 'string' ? cleanArgs.startStep : undefined,
+            });
+          }
           emit({ type: 'status', phase: 'completed', label: 'Completed' });
           emit({ type: 'token', delta: result.summary });
           const latencyMs = Date.now() - startMs;

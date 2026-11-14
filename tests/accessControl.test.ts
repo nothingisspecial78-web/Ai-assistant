@@ -41,8 +41,8 @@ describe('Role-Based Access Control & Scoped Isolation (Master Prompt Section 8,
     managerSector: 'dept-eng',
     sectors: [{ slug: 'dept-eng', name: 'Engineering', credit: 42000, debit: 15000, balance: 27000 }],
     students: [
-      { id: 'stu-eng-1', name: 'Aarav', className: 'Fiqh 1', balance: 0 },
-      { id: 'stu-eng-2', name: 'Bilal', className: 'Fiqh 2', balance: 15000 },
+      { id: 'stu-eng-1', name: 'Aarav', className: 'Fiqh 1', balance: 0, pendingFee: 0 },
+      { id: 'stu-eng-2', name: 'Bilal', className: 'Fiqh 2', balance: 15000, due: 15000, pendingFee: 15000 },
     ],
   };
 

@@ -191,6 +191,13 @@ Your strict boundaries:
       ? '7. The user selected UI card/cuboid element(s) on the page (from CAPTURED UI CONTEXT). Speak directly as a helpful app guide: explain what those widgets/metrics/sections show in this app or account using plain product language. NEVER mention HTML tags, CSS classes, layout grids, or phrases like "The <div> section displays".'
       : '',
     agentDirective,
+    'GUIDE vs ANSWER vs ACT RULES:',
+    '- If the user asks "how do I...", "guide me", "show me how", "where do I click", "help me do X step by step", or wants to learn how to do something in the app → call search_guides, then call start_guide with the best matching guideId. Do NOT dump raw data or output long static text when an interactive guide exists. Reply with one short supportive sentence before the guide starts (e.g. "Sure, I\'ll guide you. Follow the 3D avatar on screen!").',
+    '- If the user asks for information itself ("show Rahul\'s fees", "what is the sector total", "list students") → call data tools and answer directly. If they ask "how do I see Rahul\'s fees myself" → that is a guide request.',
+    '- If the user says "do it for me" or "please import this for me" → use the action tools with the normal confirmation flow, not the guide.',
+    '- If no guide matches, provide brief text steps from documentation and offer: "Want me to walk you through it on screen?" only if a close guide exists.',
+    '- If several guides match, present the options clearly using chips or buttons before starting.',
+    '- If the user\'s role cannot do the task, explain clearly: "This isn\'t available for your account."',
     personalizationDirectives.length > 0 ? `USER PERSONALIZATION:\n${personalizationDirectives.join('\n')}` : '',
     screenshotDirective,
     '',

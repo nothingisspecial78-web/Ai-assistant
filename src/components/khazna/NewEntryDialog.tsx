@@ -147,7 +147,7 @@ export function NewEntryDialog({
           <Btn variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Btn>
-          <Btn variant="primary" onClick={save}>
+          <Btn variant="primary" data-guide-id="dialog-entry-submit" onClick={save}>
             <Check /> {isEdit ? "Save changes" : "Post entry"}
           </Btn>
         </>
@@ -172,7 +172,7 @@ export function NewEntryDialog({
             <div>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" />
-                <input className="k-input pl-9" placeholder="Search name, Ad.No or class…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+                <input className="k-input pl-9" data-guide-id="dialog-entry-student" placeholder="Search name, Ad.No or class…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
               </div>
               <div className="mt-1.5 max-h-48 overflow-y-auto rounded-xl border border-hairline">
                 {matches.map((s) => (
@@ -223,7 +223,7 @@ export function NewEntryDialog({
           <Field label="Amount" required error={touched ? errors.amount : ""}>
             <div className="relative">
               <IndianRupee className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-subtle" />
-              <input className="k-input num pl-8" inputMode="numeric" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value.replace(/\D/g, "") })} placeholder="500" aria-invalid={touched && !!errors.amount} />
+              <input className="k-input num pl-8" data-guide-id="dialog-entry-amount" inputMode="numeric" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value.replace(/\D/g, "") })} placeholder="500" aria-invalid={touched && !!errors.amount} />
             </div>
           </Field>
           <Field label="Date" required>

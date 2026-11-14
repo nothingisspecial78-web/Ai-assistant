@@ -472,18 +472,111 @@ export const CHIP_REGISTRY: ChipDef[] = [
     },
   },
   {
-    id: 'global.inspect-hint',
+    id: 'global.guide-tour',
     pageId: 'global',
     role: 'ALL',
     priority: 40,
-    icon: 'Crosshair',
+    icon: 'Compass',
     label: {
-      en: 'Inspect Any Card',
-      ml: 'കാർഡ് പരിശോധിക്കുക',
+      en: 'Guide Me / Walkthrough',
+      ml: 'സഹായ മാർഗ്ഗനിർദ്ദേശം',
     },
     prompt: {
-      en: 'How do I use the Inspect crosshair to ask about a specific card on screen?',
-      ml: 'സ്ക്രീനിലെ ഒരു പ്രത്യേക കാർഡിനെക്കുറിച്ച് ചോദിക്കാൻ ഇൻസ്പെക്ട് ക്രോസ്ഹെയർ എങ്ങനെ ഉപയോഗിക്കാം?',
+      en: 'Guide me around the screen and show me what I can do here step by step.',
+      ml: 'ഈ പേജിൽ എന്തെല്ലാം ചെയ്യാം എന്ന് ഓരോ ഘട്ടമായി എനിക്ക് കാണിച്ചു തരിക.',
+    },
+  },
+  // -------------------------------------------------------------
+  // GUIDE CHIPS (Interactive On-Screen Walkthroughs)
+  // -------------------------------------------------------------
+  {
+    id: 'guide.import-students',
+    pageId: 'admin.students',
+    role: 'ADMIN',
+    priority: 95,
+    icon: 'Compass',
+    label: {
+      en: 'Guide: Import Students',
+      ml: 'ഗൈഡ്: ഇമ്പോർട്ട് ചെയ്യുക',
+    },
+    prompt: {
+      en: 'Guide me to import students step by step',
+      ml: 'വിദ്യാർത്ഥികളെ ഇമ്പോർട്ട് ചെയ്യാൻ എന്നെ സഹായിക്കുക',
+    },
+  },
+  {
+    id: 'guide.add-student',
+    pageId: 'admin.students',
+    role: 'ADMIN',
+    priority: 85,
+    icon: 'Compass',
+    label: {
+      en: 'Guide: Add Student',
+      ml: 'ഗൈഡ്: പുതിയ വിദ്യാർത്ഥി',
+    },
+    prompt: {
+      en: 'Guide me to add an individual student',
+      ml: 'പുതിയ വിദ്യാർത്ഥിയെ ചേർക്കാൻ എന്നെ സഹായിക്കുക',
+    },
+  },
+  {
+    id: 'guide.create-sector',
+    pageId: 'admin.sectors',
+    role: 'ADMIN',
+    priority: 95,
+    icon: 'Compass',
+    label: {
+      en: 'Guide: Create Sector',
+      ml: 'ഗൈഡ്: സെക്ടർ ഉണ്ടാക്കുക',
+    },
+    prompt: {
+      en: 'Guide me to create a new sector',
+      ml: 'പുതിയ സെക്ടർ ഉണ്ടാക്കാൻ എന്നെ സഹായിക്കുക',
+    },
+  },
+  {
+    id: 'guide.record-deposit',
+    pageId: 'manager.entries',
+    role: 'SECTOR_MANAGER',
+    priority: 95,
+    icon: 'Compass',
+    label: {
+      en: 'Guide: Record Deposit',
+      ml: 'ഗൈഡ്: ഫീസ് ഡെപ്പോസിറ്റ്',
+    },
+    prompt: {
+      en: 'Guide me to record a fee deposit',
+      ml: 'ഫീസ് ഡെപ്പോസിറ്റ് രേഖപ്പെടുത്താൻ എന്നെ സഹായിക്കുക',
+    },
+  },
+  {
+    id: 'guide.check-fees',
+    pageId: 'student.dashboard',
+    role: 'STUDENT',
+    priority: 95,
+    icon: 'Compass',
+    label: {
+      en: 'Guide: Check My Fees',
+      ml: 'ഗൈഡ്: ഫീസ് പരിശോധിക്കുക',
+    },
+    prompt: {
+      en: 'Guide me to see my fees and dues',
+      ml: 'എന്റെ ഫീസ് കുടിശ്ശിക കാണാൻ എന്നെ സഹായിക്കുക',
+    },
+  },
+  {
+    id: 'guide.login',
+    pageId: 'auth.login',
+    role: 'ALL',
+    priority: 95,
+    icon: 'Compass',
+    label: {
+      en: 'Guide: How to Log In',
+      ml: 'ഗൈഡ്: ലോഗിൻ ചെയ്യുക',
+    },
+    prompt: {
+      en: 'Guide me to log in step by step',
+      ml: 'ലോഗിൻ ചെയ്യാൻ എന്നെ സഹായിക്കുക',
     },
   },
 ];

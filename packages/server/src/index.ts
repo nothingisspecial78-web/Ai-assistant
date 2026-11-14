@@ -11,6 +11,7 @@ import { createVectorStore, type VectorStore } from './rag/store.ts';
 import { createActionsRouter } from './routes/actions.ts';
 import { createChatRouter } from './routes/chat.ts';
 import { createChipsRouter } from './routes/chips.ts';
+import { createGuidesRouter } from './routes/guides.ts';
 import { createIngestRouter } from './routes/ingest.ts';
 import { createTranscribeRouter } from './routes/transcribe.ts';
 import { createUploadRouter } from './routes/upload.ts';
@@ -120,6 +121,12 @@ export function mountAssistantRoutes(app: Express, runtime: AssistantRuntime): v
     '/api/assistant',
     assistantCors,
     createChipsRouter({ cfg, repository })
+  );
+
+  app.use(
+    '/api/assistant/guides',
+    assistantCors,
+    createGuidesRouter({ cfg, embedder, vectorStore, llm, toolRegistry, actionStore, cache, repository })
   );
 
   app.get('/api/profiles', (_req, res) => {

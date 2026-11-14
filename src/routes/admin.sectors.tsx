@@ -56,7 +56,7 @@ function SectorsPage() {
         title="Sectors & classes"
         description="Each sector keeps its own ledger, receipt series and collection target."
         actions={
-          <Btn variant="primary" onClick={() => setAdding(true)}>
+          <Btn variant="primary" data-guide-id="sectors-create-button" onClick={() => setAdding(true)}>
             <Plus /> Add sector
           </Btn>
         }

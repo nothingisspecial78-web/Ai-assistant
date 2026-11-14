@@ -297,6 +297,11 @@ export type AssistantSseEvent =
   | { type: 'token'; delta: string }
   | { type: 'stream_reset'; reason?: string }
   | {
+      type: 'start_guide';
+      guideId: string;
+      startStep?: string;
+    }
+  | {
       type: 'follow_up_chips';
       chips: Array<{ id: string; label: string; prompt: string }>;
     }

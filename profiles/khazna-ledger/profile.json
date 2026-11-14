@@ -58,7 +58,9 @@
     "get_receipt",
     "list_organizations",
     "summarize_platform_usage",
-    "query_data"
+    "query_data",
+    "search_guides",
+    "start_guide"
   ],
   "customTools": [],
   "api": {

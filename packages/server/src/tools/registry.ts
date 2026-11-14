@@ -8,6 +8,7 @@ import type { AccessScope } from '../security/scope.ts';
 import { resolveAppBaseUrl } from '../auth.ts';
 import { KHAZNA_BUILTIN_TOOLS } from './khaznaTools.ts';
 import { DATA_ACCESS_TOOLS } from './dataAccessTools.ts';
+import { GUIDE_TOOLS } from './guideTools.ts';
 import type { ToolDefinition, ToolExecutionContext, ToolExecutionResult } from './types.ts';
 
 async function callConnectedAppApi(
@@ -1169,6 +1170,7 @@ const BUILTIN_TOOLS: Record<string, ToolDefinition> = {
   returnBook: returnBookTool,
   ...KHAZNA_BUILTIN_TOOLS,
   ...DATA_ACCESS_TOOLS,
+  ...Object.fromEntries(GUIDE_TOOLS.map((t) => [t.name, t])),
 };
 
 const STUDENT_ALLOWED_TOOLS = new Set([
@@ -1185,6 +1187,8 @@ const STUDENT_ALLOWED_TOOLS = new Set([
   'summarize_student_finance',
   'get_receipt',
   'query_data',
+  'search_guides',
+  'start_guide',
 ]);
 
 const MANAGER_ALLOWED_TOOLS = new Set([
@@ -1219,6 +1223,8 @@ const MANAGER_ALLOWED_TOOLS = new Set([
   'report_fund_utilization',
   'get_receipt',
   'query_data',
+  'search_guides',
+  'start_guide',
 ]);
 
 export class ToolRegistry {

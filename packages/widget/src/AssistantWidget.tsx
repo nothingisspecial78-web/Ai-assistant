@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Crosshair } from 'lucide-react';
-import type { ActionLogEntry, ChatAttachment, RightClickContext } from '@ai-assistant/core';
+import type { ActionLogEntry, ChatAttachment, GuideDef, GuideStep, RightClickContext } from '@ai-assistant/core';
 import { AgentCursorOverlay } from './components/AgentCursorOverlay.tsx';
 import { AssistantAvatar3D } from './components/AssistantAvatar3D.tsx';
 import { Composer } from './components/Composer.tsx';
@@ -11,6 +11,7 @@ import { HistoryDrawer } from './components/HistoryDrawer.tsx';
 import { MessageList } from './components/MessageList.tsx';
 import { Panel } from './components/Panel.tsx';
 import { PersonalizationModal } from './components/PersonalizationModal.tsx';
+import { GuideEngine, GuideOverlay } from './guide/index.ts';
 import { useChatStorage } from './hooks/useChatStorage.ts';
 import { useChatStream } from './hooks/useChatStream.ts';
 import { ensureWidgetStyles } from './styles.ts';
@@ -71,6 +72,16 @@ export function AssistantWidget({
   const [dynamicChips, setDynamicChips] = useState<Array<{ id: string; label: string; prompt: string }>>([]);
   const chipsCacheRef = useRef<Map<string, Array<{ id: string; label: string; prompt: string }>>>(new Map());
 
+  // Guide Walkthrough & 3D Avatar State
+  const [activeGuide, setActiveGuide] = useState<GuideDef | null>(null);
+  const [activeStep, setActiveStep] = useState<GuideStep | null>(null);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [totalSteps, setTotalSteps] = useState(0);
+  const [guidePaused, setGuidePaused] = useState(false);
+  const [avatarMuted, setAvatarMuted] = useState(false);
+  const [avatarHidden, setAvatarHidden] = useState(false);
+  const guideEngineRef = useRef<GuideEngine | null>(null);
+
   const position = theme?.position || (rtl ? 'left' : 'right');
 
   useEffect(() => {
@@ -107,6 +118,30 @@ export function AssistantWidget({
     setCelebrateTick((c) => c + 1);
   }, []);
 
+  const handleStartGuide = useCallback(
+    async (guideId: string, startStep?: string) => {
+      try {
+        const token = getAuthToken ? await getAuthToken() : '';
+        const headers: Record<string, string> = { 'x-app-id': appId };
+        if (token) headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+
+        const res = await fetch(`${apiUrl.replace(/\/$/, '')}/api/assistant/guides/${encodeURIComponent(guideId)}`, {
+          headers,
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.ok && data.guide && guideEngineRef.current) {
+          setOpen(false); // Collapse chat panel during interactive walkthrough
+          setActiveGuide(data.guide);
+          await guideEngineRef.current.start(data.guide, startStep);
+        }
+      } catch (err) {
+        console.error('Failed to start guide:', err);
+      }
+    },
+    [apiUrl, appId, getAuthToken]
+  );
+
   const {
     messages,
     isStreaming,
@@ -133,8 +168,42 @@ export function AssistantWidget({
     onAppCommand,
     onActionCompleted: handleActionCompleted,
     onUiAction: handleUiAction,
+    onStartGuide: handleStartGuide,
     onMessagesChange: syncActiveMessages,
   });
+
+  // Initialize GuideEngine
+  useEffect(() => {
+    const engine = new GuideEngine({
+      apiUrl,
+      defaultLang: personalization.preferredLanguage || 'en',
+      onStepChange: (step, idx, total) => {
+        setActiveStep(step);
+        setStepIndex(idx);
+        setTotalSteps(total);
+      },
+      onComplete: (g) => {
+        setActiveGuide(null);
+        setActiveStep(null);
+        setOpen(true);
+        void sendMessage({
+          text: `I've finished the walkthrough for "${g.title.en}". What would you like to do next?`,
+        });
+      },
+      onAbort: () => {
+        setActiveGuide(null);
+        setActiveStep(null);
+      },
+      onAskMiniChat: (q) => {
+        setOpen(true);
+        void sendMessage({ text: q });
+      },
+    });
+    guideEngineRef.current = engine;
+    return () => {
+      engine.destroy();
+    };
+  }, [apiUrl, personalization.preferredLanguage, sendMessage]);
 
   // Fetch dynamic chips when opening panel or navigating pages
   useEffect(() => {
@@ -176,6 +245,34 @@ export function AssistantWidget({
       controller.abort();
     };
   }, [open, getPageId, getAuthToken, apiUrl, appId, personalization.preferredLanguage, userKey]);
+
+  // Persistent Role-Aware Prompt Chips:
+  // Combines server-side dynamic chips with role suggestions passed by props so they NEVER disappear!
+  const combinedChips = useMemo(() => {
+    const list: Array<{ id: string; label: string; prompt: string }> = [];
+    const seenPrompts = new Set<string>();
+
+    // 1. Role-specific suggestions passed by props always take high priority!
+    if (suggestions) {
+      for (let i = 0; i < suggestions.length; i++) {
+        const s = suggestions[i];
+        if (!seenPrompts.has(s.toLowerCase())) {
+          seenPrompts.add(s.toLowerCase());
+          list.push({ id: `role-sug-${i}`, label: s, prompt: s });
+        }
+      }
+    }
+
+    // 2. Add dynamic server chips (e.g. guide chips, page-specific shortcuts)
+    for (const c of dynamicChips) {
+      if (!seenPrompts.has(c.prompt.toLowerCase())) {
+        seenPrompts.add(c.prompt.toLowerCase());
+        list.push(c);
+      }
+    }
+
+    return list;
+  }, [dynamicChips, suggestions]);
 
   // Reset transient overlays when switching appId or userKey
   useEffect(() => {
@@ -390,16 +487,12 @@ export function AssistantWidget({
 
           <MessageList
             messages={messages}
-            suggestions={
-              dynamicChips.length > 0
-                ? dynamicChips.map((c) => c.prompt)
-                : suggestions
-            }
+            suggestions={combinedChips.map((c) => c.prompt)}
             mobileCompactMode={isMobileViewport && mobileMode === 'compact'}
             onExpandMobileHistory={() => setMobileMode('full')}
             onSuggestionClick={(q) => {
-              const matched = dynamicChips.find((c) => c.prompt === q);
-              if (matched) {
+              const matched = combinedChips.find((c) => c.prompt === q);
+              if (matched && !matched.id.startsWith('role-sug-')) {
                 const pageId = getPageId ? getPageId() : 'global';
                 void fetch(`${apiUrl.replace(/\/$/, '')}/api/assistant/chips/click`, {
                   method: 'POST',
@@ -426,7 +519,7 @@ export function AssistantWidget({
           />
 
           {/* Persistent Role-Aware Prompt Chips Dock (always accessible even when conversation has messages) */}
-          {(dynamicChips.length > 0 || (suggestions && suggestions.length > 0)) && (
+          {combinedChips.length > 0 && (
             <div
               className="aia-chips-dock"
               style={{
@@ -441,17 +534,14 @@ export function AssistantWidget({
                 flexShrink: 0,
               }}
             >
-              {(dynamicChips.length > 0
-                ? dynamicChips
-                : (suggestions || []).map((s, idx) => ({ id: `sug-${idx}`, label: s, prompt: s }))
-              ).map((chip) => (
+              {combinedChips.map((chip) => (
                 <button
                   key={chip.id}
                   type="button"
                   className="aia-suggestion-chip-pill"
                   title={chip.prompt}
                   onClick={() => {
-                    if (chip.id && !chip.id.startsWith('sug-')) {
+                    if (chip.id && !chip.id.startsWith('role-sug-')) {
                       const pageId = getPageId ? getPageId() : 'global';
                       void fetch(`${apiUrl.replace(/\/$/, '')}/api/assistant/chips/click`, {
                         method: 'POST',
@@ -528,6 +618,55 @@ export function AssistantWidget({
           />
         </FileDrop>
       </Panel>
+
+      {activeGuide && activeStep && (
+        <GuideOverlay
+          guide={activeGuide}
+          step={activeStep}
+          stepIndex={stepIndex}
+          totalSteps={totalSteps}
+          lang={personalization.preferredLanguage || 'en'}
+          targetResolver={guideEngineRef.current!.targetResolver}
+          paused={guidePaused}
+          muted={avatarMuted}
+          hiddenAvatar={avatarHidden}
+          onBack={() => void guideEngineRef.current?.back()}
+          onNext={() => void guideEngineRef.current?.next()}
+          onRepeat={() => void guideEngineRef.current?.repeat()}
+          onTogglePause={() => {
+            if (guidePaused) {
+              guideEngineRef.current?.resume();
+              setGuidePaused(false);
+            } else {
+              guideEngineRef.current?.pause();
+              setGuidePaused(true);
+            }
+          }}
+          onToggleMute={() => {
+            const next = !avatarMuted;
+            setAvatarMuted(next);
+            guideEngineRef.current?.voiceController.setMuted(next);
+          }}
+          onToggleHideAvatar={() => {
+            const next = !avatarHidden;
+            setAvatarHidden(next);
+            if (next) {
+              guideEngineRef.current?.avatarController.hide();
+            } else {
+              guideEngineRef.current?.avatarController.showDefaultPosition();
+            }
+          }}
+          onAskMiniChat={(q) => {
+            setOpen(true);
+            void sendMessage({ text: q });
+          }}
+          onExit={() => {
+            guideEngineRef.current?.abort();
+            setActiveGuide(null);
+            setActiveStep(null);
+          }}
+        />
+      )}
     </div>
   );
 }

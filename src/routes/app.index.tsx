@@ -69,7 +69,7 @@ function StudentHome() {
         </p>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 14, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5 }} className="glass ring-gradient relative overflow-hidden p-6 md:p-8">
+      <motion.div initial={{ opacity: 0, y: 14, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5 }} data-guide-id="student-dues-card" className="glass ring-gradient relative overflow-hidden p-6 md:p-8">
         <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-primary/25 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 left-1/3 size-72 rounded-full bg-info/10 blur-3xl" />
         <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -92,7 +92,7 @@ function StudentHome() {
             <Download /> Combined statement
           </Btn>
         </div>
-        <div className="relative mt-7">
+        <div data-guide-id="student-sectors-list" className="relative mt-7">
           <div className="flex h-2.5 overflow-hidden rounded-full bg-accent">
             {d.per.map((p, i) => (
               <motion.div

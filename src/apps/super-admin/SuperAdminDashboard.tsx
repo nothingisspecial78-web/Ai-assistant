@@ -314,7 +314,7 @@ export function SuperAdminDashboard() {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" data-guide-id="super-admin-orgs-table">
             <table className="w-full text-left text-sm">
               <thead className="bg-white/5 text-neutral-400 text-xs uppercase tracking-wider">
                 <tr>

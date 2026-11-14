@@ -189,6 +189,7 @@ function ImportPage() {
                 onDragLeave={() => setDrag(false)}
                 onDrop={onDrop}
                 onClick={() => inputRef.current?.click()}
+                data-guide-id="import-dropzone"
                 className={cn(
                   "flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-14 text-center transition-all",
                   drag ? "border-primary bg-primary/10" : "border-glass-border hover:border-primary/50 hover:bg-accent",
@@ -210,15 +211,15 @@ function ImportPage() {
                   </div>
                 ) : (
                   <div className="flex flex-wrap items-center gap-3">
-                    <Btn variant="soft" size="sm" onClick={downloadTemplate}>
+                    <Btn variant="soft" size="sm" data-guide-id="import-download-template" onClick={downloadTemplate}>
                       <Download /> Download template
                     </Btn>
-                    <button className="text-sm text-primary hover:underline" onClick={() => load("thanawiyya-1-intake.csv", SAMPLE)}>
+                    <button className="text-sm text-primary hover:underline" data-guide-id="import-sample-file" onClick={() => load("thanawiyya-1-intake.csv", SAMPLE)}>
                       or try the sample file →
                     </button>
                   </div>
                 )}
-                <Btn variant="primary" disabled={!data} onClick={() => setStep(1)}>
+                <Btn variant="primary" data-guide-id="import-continue-step1" disabled={!data} onClick={() => setStep(1)}>
                   Continue <ArrowRight />
                 </Btn>
               </div>
@@ -256,7 +257,7 @@ function ImportPage() {
                 <Btn variant="ghost" onClick={() => setStep(0)}>
                   <ArrowLeft /> Back
                 </Btn>
-                <Btn variant="primary" disabled={missingRequired.length > 0} onClick={() => setStep(2)}>
+                <Btn variant="primary" data-guide-id="import-continue-step2" disabled={missingRequired.length > 0} onClick={() => setStep(2)}>
                   Validate rows <ArrowRight />
                 </Btn>
               </div>
@@ -383,7 +384,7 @@ function ImportPage() {
                 <Btn variant="ghost" onClick={() => setStep(1)}>
                   <ArrowLeft /> Back to mapping
                 </Btn>
-                <Btn variant="primary" disabled={validRows.length === 0} onClick={doImport}>
+                <Btn variant="primary" data-guide-id="import-confirm-button" disabled={validRows.length === 0} onClick={doImport}>
                   Import {validRows.length} valid students <ArrowRight />
                 </Btn>
               </div>

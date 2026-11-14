@@ -91,7 +91,7 @@ describe('Role-Aware & Page-Aware Prompt Chips (Add-on Prompt Section 11, Tests 
     const usageMap = new Map<string, { shownCount: number; clickCount: number; lastClickedAt?: string }>();
 
     // Chip A has base priority 40, but 5 clicks
-    usageMap.set('global.inspect-hint', { shownCount: 5, clickCount: 5, lastClickedAt: new Date().toISOString() });
+    usageMap.set('global.guide-tour', { shownCount: 5, clickCount: 5, lastClickedAt: new Date().toISOString() });
     // Chip B has base priority 50, but shown 6 times with 0 clicks (fatigue penalty -3)
     usageMap.set('global.help-shortcuts', { shownCount: 6, clickCount: 0 });
 
@@ -102,9 +102,9 @@ describe('Role-Aware & Page-Aware Prompt Chips (Add-on Prompt Section 11, Tests 
       chipUsageMap: usageMap,
     });
 
-    // global.inspect-hint: 40 + (5*2) + 3 (recency) = 53
+    // global.guide-tour: 40 + (5*2) + 3 (recency) = 53
     // global.help-shortcuts: 50 - 3 (fatigue) = 47
-    expect(ranked[0].id).toBe('global.inspect-hint');
+    expect(ranked[0].id).toBe('global.guide-tour');
     expect(ranked[1].id).toBe('global.help-shortcuts');
   });
 
