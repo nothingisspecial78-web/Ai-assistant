@@ -17,7 +17,7 @@ export function shouldUseAgentLoop(
   const lower = question.trim().toLowerCase();
   if (
     /^(how\s+(do|can|to)|what\s+(is|are|does|do|columns|files)|why\s+(did|does|is)|explain|describe)\b/i.test(lower) &&
-    !/\b(owe|due|dues|my balance|my fees?|how much.*(owe|pay|due|pending))\b/i.test(lower)
+    !/\b(owe|due|dues|my balance|my fees?|how much.*(owe|pay|due|pending)|dept-[a-z0-9_-]+|budget and balance)\b/i.test(lower)
   ) {
     return false;
   }
@@ -844,7 +844,7 @@ export function inferDeterministicToolCall(
             : 'admin';
         return { name: 'khaznaNavigate', args: { role, loadDemo: true } };
       }
-      if (/\b(open|go\s+to|switch\s+to|navigate\s+to|show)\b/i.test(lower)) {
+      if (!/\bwhat\s+does\b/i.test(lower) && /\b(open|go\s+to|switch\s+to|navigate\s+to|show)\b/i.test(lower)) {
         if (/\baudit\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/audit', role: 'admin' } };
         if (/\bissued\s+reports?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/issued-reports', role: 'admin' } };
         if (/\breports?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: `/m/${sectorMatch || 'dept-fiqh'}/reports`, role: 'manager', sector: sectorMatch } };

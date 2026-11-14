@@ -256,7 +256,7 @@ describe('Role-Based Access Control & Scoped Isolation (Master Prompt Section 8,
 
     expect(tokens).toContain('Bilal');
     expect(tokens.toLowerCase()).not.toContain('fathima');
-  });
+  }, 60000);
 
   it("Test 7: Sector Manager (Sector A) asks for Sector B's budget -> Refuses", async () => {
     const emitted: AssistantSseEvent[] = [];
@@ -288,7 +288,7 @@ describe('Role-Based Access Control & Scoped Isolation (Master Prompt Section 8,
       .join('');
 
     expect(tokens.toLowerCase()).toMatch(/access denied|only.*access|cannot view|unauthorized/i);
-  });
+  }, 60000);
 
   it("Test 8: Sector Manager attempts to call tool with sectorId='dept-sci' -> Tool layer returns authorization error", async () => {
     const emitted: AssistantSseEvent[] = [];

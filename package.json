@@ -24,10 +24,12 @@
     "avatar:inspect": "node node_modules/tsx/dist/cli.mjs scripts/inspectAvatar.ts",
     "guides:check": "node node_modules/tsx/dist/cli.mjs scripts/checkGuides.ts",
     "seed:guide-test": "node node_modules/tsx/dist/cli.mjs scripts/seedGuideTest.ts",
+    "seed:qa": "node node_modules/tsx/dist/cli.mjs scripts/seedQa.ts",
     "perf:nav": "node node_modules/tsx/dist/cli.mjs scripts/perfNav.ts",
     "perf:scroll": "node node_modules/tsx/dist/cli.mjs scripts/perfScroll.ts",
     "perf:api": "node node_modules/tsx/dist/cli.mjs scripts/perfApi.ts",
     "perf:bundle": "node node_modules/tsx/dist/cli.mjs scripts/perfBundle.ts",
+    "qa:assistant": "node node_modules/tsx/dist/cli.mjs scripts/qa/runAllAgents.ts",
     "qa:all": "npm run perf:bundle && npm run perf:api && npm run perf:scroll && npm run perf:nav"
   },
   "dependencies": {

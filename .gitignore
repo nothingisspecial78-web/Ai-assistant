@@ -12,4 +12,12 @@ coverage/
 backups/
 data/platform_admins.json
 data/platform_audit_logs.json
+qa-artifacts/**/*.png
+qa-artifacts/**/*.jpg
+qa-artifacts/**/*.jpeg
+qa-artifacts/**/*.webm
+qa-artifacts/**/*.mp4
+qa-artifacts/**/*.har
+qa-artifacts/**/*.trace
+qa-artifacts/*.png
 

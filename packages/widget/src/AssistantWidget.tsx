@@ -522,17 +522,7 @@ export function AssistantWidget({
           {combinedChips.length > 0 && (
             <div
               className="aia-chips-dock"
-              style={{
-                display: 'flex',
-                gap: '6px',
-                padding: '6px 12px',
-                overflowX: 'auto',
-                scrollbarWidth: 'none',
-                WebkitOverflowScrolling: 'touch',
-                borderTop: '1px solid var(--aia-hairline, rgba(255,255,255,0.08))',
-                background: 'var(--aia-surface, rgba(15,23,42,0.95))',
-                flexShrink: 0,
-              }}
+              data-testid="persistent-chips-dock"
             >
               {combinedChips.map((chip) => (
                 <button
@@ -554,21 +544,6 @@ export function AssistantWidget({
                       contexts: pendingContexts.length > 0 ? pendingContexts : undefined,
                     });
                     setPendingContexts([]);
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '4px 10px',
-                    borderRadius: '9999px',
-                    fontSize: '11px',
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                    background: 'var(--aia-inset, rgba(255,255,255,0.06))',
-                    border: '1px solid var(--aia-hairline, rgba(255,255,255,0.12))',
-                    color: 'var(--aia-text, #f8fafc)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
                   }}
                 >
                   <span style={{ color: 'var(--aia-primary, #f97316)', fontSize: '10px' }}>✦</span>

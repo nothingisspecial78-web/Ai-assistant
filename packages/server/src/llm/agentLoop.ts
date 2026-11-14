@@ -228,9 +228,11 @@ export async function runChatAgent(params: {
 
   const hasDomainEntityAction =
     useTools &&
-    /\b(student|students|sector|sectors|union|fund|funds|charity|grant|endowment|fee|fees|admission|book|books|loan|loans|catalog|library|tab|khazna|ledger|receipt|void|unvoid|batch|class|deposit|debit|credit|tuition|mess|fiqh|civil|ihsan|velitcham|audit|report|reports|issued|notifications|notice|profile|signatory|institution|download|export|print|pdf|excel|xlsx|csv|statement|template|phone|org|workspace|edit|invite|revoke|extend|theme|dark|light|demo|admin|manager|account|signup|sign\s*up|college|campus|password|display|overview|summary|balance|bulk|upload|stable|dues|owe|owes|collect|paid|status)\b/i.test(
+    (/\b(student|students|sector|sectors|union|fund|funds|charity|grant|endowment|fee|fees|financial|finance|finances|transaction|transactions|admission|book|books|loan|loans|catalog|library|tab|khazna|ledger|receipt|void|unvoid|batch|class|deposit|debit|credit|tuition|mess|fiqh|civil|ihsan|velitcham|audit|report|reports|issued|notifications|notice|profile|signatory|institution|download|export|print|pdf|excel|xlsx|csv|statement|template|phone|org|organization|organizations|college|colleges|workspace|edit|invite|revoke|extend|theme|dark|light|demo|admin|manager|account|signup|sign\s*up|campus|password|display|overview|summary|balance|bulk|upload|stable|dues|owe|owes|collect|paid|status)\b/i.test(
       question
-    );
+    ) ||
+      /\bS\d{3,5}\b/i.test(question) ||
+      /\b(DF|OF|EF|TF)-\d+\b/i.test(question));
 
   const retrieval = await retrieveForQuery({
     profile,

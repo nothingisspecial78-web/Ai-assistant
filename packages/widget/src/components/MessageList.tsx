@@ -669,6 +669,46 @@ export function MessageList({
           </div>
         );
       })}
+
+      {suggestions && suggestions.length > 0 && (
+        <div
+          data-testid="message-list-suggestions"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '6px',
+            marginTop: '8px',
+            marginBottom: '4px',
+            padding: '4px 2px',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              fontSize: '11px',
+              fontWeight: 600,
+              color: 'var(--aia-text-muted, #94a3b8)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              marginBottom: '2px',
+            }}
+          >
+            Suggested actions
+          </div>
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="aia-suggestion-chip-pill"
+              onClick={() => onSuggestionClick?.(s)}
+            >
+              <span style={{ color: 'var(--aia-primary, #f97316)', fontSize: '11px' }}>✦</span>
+              <span>{s}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div ref={bottomRef} />
     </div>
   );

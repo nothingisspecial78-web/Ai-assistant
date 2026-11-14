@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import type { AppProfile } from '@ai-assistant/core';
 import { logger, type ServerConfig } from './config.ts';
 import type { ProfileRegistry } from './profiles/loader.ts';
+import { verifyScopeToken } from './security/scope.ts';
 
 export interface AuthenticatedUser {
   userId: string;
@@ -35,13 +36,37 @@ export async function verifyUserToken(params: {
     return null;
   }
 
-  const secret =
+  // 1. Structured demo token support (e.g. demo:ADMIN:user:sector:student:org)
+  if (cleanToken.startsWith('demo:')) {
+    const parts = cleanToken.split(':');
+    const role = parts[1] || 'viewer';
+    const userId = parts[2] || 'demo-user';
+    return {
+      userId,
+      role,
+      name: parts[2] || 'Demo User',
+      rawToken: cleanToken,
+    };
+  }
+
+  // 2. Signed Scope JWT token verification
+  const scopeSecret =
     (profile.auth.jwtSecretEnv ? process.env[profile.auth.jwtSecretEnv] : undefined) ||
     cfg.jwtSecret;
+  const verifiedScope = verifyScopeToken(cleanToken, scopeSecret);
+  if (verifiedScope) {
+    return {
+      userId: verifiedScope.userId,
+      role: verifiedScope.role,
+      name: verifiedScope.userId,
+      rawToken: cleanToken,
+    };
+  }
 
+  // 3. JWT auth mode
   if (profile.auth.mode === 'jwt' || profile.auth.mode === 'hybrid') {
     try {
-      const decoded = jwt.verify(cleanToken, secret) as Record<string, unknown>;
+      const decoded = jwt.verify(cleanToken, scopeSecret) as Record<string, unknown>;
       const userId = String(decoded.sub || decoded.userId || decoded.id || '');
       if (userId) {
         return {
@@ -58,6 +83,7 @@ export async function verifyUserToken(params: {
     }
   }
 
+  // 4. Me endpoint auth mode
   if ((profile.auth.mode === 'me' || profile.auth.mode === 'hybrid') && profile.api.meEndpoint) {
     try {
       const base = resolveAppBaseUrl(profile.api.baseUrl, cfg.port).replace(/\/$/, '');
@@ -85,6 +111,15 @@ export async function verifyUserToken(params: {
       logger.warn({ err, appId: profile.appId }, 'Profile /me token verification failed');
       return null;
     }
+  }
+
+  // 5. If profile auth mode is 'none', accept any non-empty token gracefully
+  if (profile.auth.mode === 'none') {
+    return {
+      userId: 'anonymous',
+      role: 'viewer',
+      rawToken: cleanToken,
+    };
   }
 
   return null;

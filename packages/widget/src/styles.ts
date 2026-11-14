@@ -178,34 +178,46 @@ export function ensureWidgetStyles(): void {
       background: color-mix(in oklab, var(--aia-primary) 12%, transparent);
       color: var(--aia-primary);
     }
-    .aia-inspect-fab {
+    .aia-chips-dock {
+      display: flex;
+      gap: 6px;
+      padding: 8px 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      border-top: 1px solid var(--aia-hairline);
+      background: var(--aia-surface-strong);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      flex-shrink: 0;
+      z-index: 5;
+    }
+    .aia-chips-dock::-webkit-scrollbar {
+      display: none;
+    }
+    .aia-suggestion-chip-pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      height: 38px;
-      padding: 0 13px;
-      border-radius: 0.75rem;
-      border: 1px solid var(--aia-border);
-      background: var(--aia-surface-strong);
-      backdrop-filter: blur(20px) saturate(140%);
-      -webkit-backdrop-filter: blur(20px) saturate(140%);
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 11.5px;
+      font-weight: 500;
+      white-space: nowrap;
+      background: var(--aia-surface);
+      border: 1px solid var(--aia-hairline);
       color: var(--aia-text);
-      font-size: 12.5px;
-      font-weight: 600;
-      font-family: var(--aia-font-sans);
       cursor: pointer;
-      box-shadow: var(--aia-shadow-glass);
-      transition: translate 200ms cubic-bezier(0.22, 1, 0.36, 1), border-color 160ms ease, background-color 160ms ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      transition: all 160ms cubic-bezier(0.22, 1, 0.36, 1);
+      flex-shrink: 0;
     }
-    .aia-inspect-fab:hover {
-      translate: 0 -2px;
-      border-color: color-mix(in oklab, var(--aia-primary) 50%, transparent);
-    }
-    .aia-inspect-fab.aia-active {
-      background: var(--aia-gradient-primary);
-      color: var(--aia-primary-fg);
-      border-color: transparent;
-      box-shadow: var(--aia-shadow-glow);
+    .aia-suggestion-chip-pill:hover {
+      background: color-mix(in oklab, var(--aia-primary) 12%, var(--aia-surface));
+      border-color: color-mix(in oklab, var(--aia-primary) 40%, transparent);
+      color: var(--aia-primary);
+      translate: 0 -1px;
+      box-shadow: 0 2px 6px rgba(249, 115, 22, 0.18);
     }
     .aia-inspector-hud {
       position: fixed;
@@ -326,11 +338,6 @@ export function ensureWidgetStyles(): void {
       .aia-avatar-stage {
         width: 78px;
         height: 82px;
-      }
-      .aia-inspect-fab {
-        height: 36px;
-        padding: 0 11px;
-        font-size: 12px;
       }
     }
   `;
