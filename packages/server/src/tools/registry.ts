@@ -7,6 +7,7 @@ import {
 import type { AccessScope } from '../security/scope.ts';
 import { resolveAppBaseUrl } from '../auth.ts';
 import { KHAZNA_BUILTIN_TOOLS } from './khaznaTools.ts';
+import { DATA_ACCESS_TOOLS } from './dataAccessTools.ts';
 import type { ToolDefinition, ToolExecutionContext, ToolExecutionResult } from './types.ts';
 
 async function callConnectedAppApi(
@@ -1167,6 +1168,7 @@ const BUILTIN_TOOLS: Record<string, ToolDefinition> = {
   borrowBook: borrowBookTool,
   returnBook: returnBookTool,
   ...KHAZNA_BUILTIN_TOOLS,
+  ...DATA_ACCESS_TOOLS,
 };
 
 const STUDENT_ALLOWED_TOOLS = new Set([
@@ -1179,6 +1181,10 @@ const STUDENT_ALLOWED_TOOLS = new Set([
   'khaznaSetTheme',
   'controlAppUi',
   'khaznaPrintPage',
+  'get_student',
+  'summarize_student_finance',
+  'get_receipt',
+  'query_data',
 ]);
 
 const MANAGER_ALLOWED_TOOLS = new Set([
@@ -1203,6 +1209,16 @@ const MANAGER_ALLOWED_TOOLS = new Set([
   'khaznaOpenInteractiveForm',
   'controlAppUi',
   'khaznaPrintPage',
+  'find_students',
+  'get_student',
+  'summarize_student_finance',
+  'find_sectors',
+  'summarize_sector_finance',
+  'report_class',
+  'report_defaulters',
+  'report_fund_utilization',
+  'get_receipt',
+  'query_data',
 ]);
 
 export class ToolRegistry {
@@ -1218,17 +1234,24 @@ export class ToolRegistry {
       }
     }
 
-    if (scope && profile.appId === 'khazna-ledger') {
-      if (scope.role === 'STUDENT') {
-        for (const name of Array.from(map.keys())) {
-          if (!STUDENT_ALLOWED_TOOLS.has(name)) {
-            map.delete(name);
+    if (scope) {
+      if (scope.role !== 'SUPER_ADMIN') {
+        map.delete('list_organizations');
+        map.delete('summarize_platform_usage');
+      }
+
+      if (profile.appId === 'khazna-ledger') {
+        if (scope.role === 'STUDENT') {
+          for (const name of Array.from(map.keys())) {
+            if (!STUDENT_ALLOWED_TOOLS.has(name)) {
+              map.delete(name);
+            }
           }
-        }
-      } else if (scope.role === 'SECTOR_MANAGER') {
-        for (const name of Array.from(map.keys())) {
-          if (!MANAGER_ALLOWED_TOOLS.has(name)) {
-            map.delete(name);
+        } else if (scope.role === 'SECTOR_MANAGER') {
+          for (const name of Array.from(map.keys())) {
+            if (!MANAGER_ALLOWED_TOOLS.has(name)) {
+              map.delete(name);
+            }
           }
         }
       }

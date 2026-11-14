@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Crosshair } from 'lucide-react';
 import type { ActionLogEntry, ChatAttachment, RightClickContext } from '@ai-assistant/core';
 import { AgentCursorOverlay } from './components/AgentCursorOverlay.tsx';

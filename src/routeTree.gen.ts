@@ -32,6 +32,9 @@ import { Route as MSectorSlugBatchesRouteImport } from './routes/m.$sectorSlug.b
 import { Route as MSectorSlugBulkRouteImport } from './routes/m.$sectorSlug.bulk'
 import { Route as MSectorSlugLedgerRouteImport } from './routes/m.$sectorSlug.ledger'
 import { Route as MSectorSlugReportsRouteImport } from './routes/m.$sectorSlug.reports'
+import { Route as SuperAdminRouteImport } from './routes/super-admin'
+import { Route as SuperAdminLoginRouteImport } from './routes/super-admin.login'
+import { Route as SuperAdminIndexRouteImport } from './routes/super-admin.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +55,21 @@ const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SuperAdminRoute = SuperAdminRouteImport.update({
+  id: '/super-admin',
+  path: '/super-admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuperAdminIndexRoute = SuperAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SuperAdminRoute,
+} as any)
+const SuperAdminLoginRoute = SuperAdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => SuperAdminRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
@@ -304,6 +322,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MSectorSlugRoute: typeof MSectorSlugRouteWithChildren
   VTokenRoute: typeof VTokenRoute
+  SuperAdminRoute: typeof SuperAdminRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -532,6 +551,20 @@ const MSectorSlugRouteWithChildren = MSectorSlugRoute._addFileChildren(
   MSectorSlugRouteChildren,
 )
 
+interface SuperAdminRouteChildren {
+  SuperAdminIndexRoute: typeof SuperAdminIndexRoute
+  SuperAdminLoginRoute: typeof SuperAdminLoginRoute
+}
+
+const SuperAdminRouteChildren: SuperAdminRouteChildren = {
+  SuperAdminIndexRoute: SuperAdminIndexRoute,
+  SuperAdminLoginRoute: SuperAdminLoginRoute,
+}
+
+const SuperAdminRouteWithChildren = SuperAdminRoute._addFileChildren(
+  SuperAdminRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -539,6 +572,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MSectorSlugRoute: MSectorSlugRouteWithChildren,
   VTokenRoute: VTokenRoute,
+  SuperAdminRoute: SuperAdminRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

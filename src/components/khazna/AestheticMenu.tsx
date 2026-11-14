@@ -89,7 +89,7 @@ export function AestheticMenu({
 
   const user =
     role === "admin"
-      ? { name: college.adminName, sub: "Super Admin", roleLabel: "Super Admin" }
+      ? { name: college.adminName, sub: "Admin", roleLabel: "Admin" }
       : role === "manager"
         ? { name: currentManager, sub: `${currentSector?.name ?? "Sector"} Manager`, roleLabel: "Sector Manager" }
         : { name: me?.name ?? "Student", sub: `${me?.id ?? "S0125"} · ${me?.className ?? "Class"}`, roleLabel: "Student" };

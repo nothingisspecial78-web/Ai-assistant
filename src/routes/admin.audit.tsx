@@ -27,7 +27,7 @@ export const Route = createFileRoute("/admin/audit")({
 });
 
 const ACTIONS: AuditAction[] = ["LOGIN", "CREATE_ENTRY", "VOID_ENTRY", "BULK_POST", "VOID_BATCH", "ADD_STUDENT", "IMPORT_STUDENTS", "ASSIGN_SECTOR", "INVITE_ADMIN", "UPDATE_SECTOR", "UPDATE_PROFILE", "EXPORT"];
-const ROLE_LABEL: Record<Role, string> = { admin: "Super Admin", manager: "Manager", student: "Student" };
+const ROLE_LABEL: Record<Role, string> = { admin: "Admin", manager: "Manager", student: "Student" };
 const PER_PAGE = 12;
 
 function AuditPage() {
@@ -57,7 +57,7 @@ function AuditPage() {
       <PageHeader
         eyebrow="Overview"
         title="Audit log"
-        description="Every action is recorded here permanently. Entries can't be edited or deleted — not even by the Super Admin."
+        description="Every action is recorded here permanently. Entries can't be edited or deleted — not even by the Admin."
         actions={
           <Btn
             variant="glass"
@@ -83,7 +83,7 @@ function AuditPage() {
         </select>
         <select className="k-input xl:w-40" value={role} onChange={(e) => { setRole(e.target.value as Role | "all"); setPage(1); }}>
           <option value="all">All roles</option>
-          <option value="admin">Super Admin</option>
+          <option value="admin">Admin</option>
           <option value="manager">Manager</option>
           <option value="student">Student</option>
         </select>

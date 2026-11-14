@@ -2,25 +2,34 @@ import jwt from 'jsonwebtoken';
 import type { Request } from 'express';
 import type { ServerConfig } from '../config.ts';
 
+export type AccessScopeRole = 'SUPER_ADMIN' | 'ADMIN' | 'SECTOR_MANAGER' | 'STUDENT';
+
 export type AccessScope =
-  | { role: 'SUPER_ADMIN'; userId: string }
-  | { role: 'SECTOR_MANAGER'; userId: string; sectorIds: string[] }
-  | { role: 'STUDENT'; userId: string; studentId: string; sectorId: string };
+  | { role: 'SUPER_ADMIN'; userId: string; organizationId?: string | null }
+  | { role: 'ADMIN'; userId: string; organizationId: string }
+  | { role: 'SECTOR_MANAGER'; userId: string; organizationId: string; sectorIds: string[] }
+  | { role: 'STUDENT'; userId: string; organizationId: string; studentId: string; sectorId: string };
 
 export interface ScopeJwtPayload {
   sub: string;
-  role: 'SUPER_ADMIN' | 'SECTOR_MANAGER' | 'STUDENT';
+  role: AccessScopeRole;
+  organizationId?: string | null;
   sectorIds?: string[];
   sectorId?: string;
   studentId?: string;
+  aud?: string;
   iat?: number;
   exp?: number;
 }
 
-export function createScopeToken(scope: AccessScope, secret: string, expiresIn = '7d'): string {
+const DEFAULT_SECRET = process.env.JWT_SECRET || 'khazna-super-admin-dev-secret-key-32chars!';
+
+export function createScopeToken(scope: AccessScope, secret: string = DEFAULT_SECRET, expiresIn = '7d'): string {
   const payload: ScopeJwtPayload = {
     sub: scope.userId,
     role: scope.role,
+    organizationId: 'organizationId' in scope ? scope.organizationId : null,
+    ...(scope.role === 'SUPER_ADMIN' ? { aud: 'super-admin' } : {}),
     ...(scope.role === 'SECTOR_MANAGER' ? { sectorIds: scope.sectorIds } : {}),
     ...(scope.role === 'STUDENT'
       ? { studentId: scope.studentId, sectorId: scope.sectorId }
@@ -29,7 +38,7 @@ export function createScopeToken(scope: AccessScope, secret: string, expiresIn =
   return jwt.sign(payload, secret, { expiresIn });
 }
 
-export function verifyScopeToken(token: string, secret: string): AccessScope | null {
+export function verifyScopeToken(token: string, secret: string = DEFAULT_SECRET): AccessScope | null {
   const clean = token.replace(/^Bearer\s+/i, '').trim();
   if (!clean) return null;
   try {
@@ -37,12 +46,24 @@ export function verifyScopeToken(token: string, secret: string): AccessScope | n
     if (!decoded || !decoded.sub || !decoded.role) return null;
 
     if (decoded.role === 'SUPER_ADMIN') {
-      return { role: 'SUPER_ADMIN', userId: decoded.sub };
+      return {
+        role: 'SUPER_ADMIN',
+        userId: decoded.sub,
+        organizationId: decoded.organizationId || null,
+      };
+    }
+    if (decoded.role === 'ADMIN') {
+      return {
+        role: 'ADMIN',
+        userId: decoded.sub,
+        organizationId: decoded.organizationId || 'demo',
+      };
     }
     if (decoded.role === 'SECTOR_MANAGER') {
       return {
         role: 'SECTOR_MANAGER',
         userId: decoded.sub,
+        organizationId: decoded.organizationId || 'demo',
         sectorIds: Array.isArray(decoded.sectorIds) ? decoded.sectorIds : [],
       };
     }
@@ -50,6 +71,7 @@ export function verifyScopeToken(token: string, secret: string): AccessScope | n
       return {
         role: 'STUDENT',
         userId: decoded.sub,
+        organizationId: decoded.organizationId || 'demo',
         studentId: String(decoded.studentId || decoded.sub),
         sectorId: String(decoded.sectorId || 'dept-fiqh'),
       };
@@ -84,15 +106,19 @@ export async function extractAccessScope(
       const uId = parts[2] || 'demo-user';
       const secId = parts[3] || 'dept-fiqh';
       const stuId = parts[4] || uId || 'S0125';
+      const orgId = parts[5] || 'demo';
 
-      if (r === 'SUPER_ADMIN' || r === 'ADMIN') {
-        return { role: 'SUPER_ADMIN', userId: uId };
+      if (r === 'SUPER_ADMIN') {
+        return { role: 'SUPER_ADMIN', userId: uId, organizationId: null };
+      }
+      if (r === 'ADMIN') {
+        return { role: 'ADMIN', userId: uId, organizationId: orgId };
       }
       if (r === 'SECTOR_MANAGER' || r === 'MANAGER') {
-        return { role: 'SECTOR_MANAGER', userId: uId, sectorIds: [secId] };
+        return { role: 'SECTOR_MANAGER', userId: uId, organizationId: orgId, sectorIds: [secId] };
       }
       if (r === 'STUDENT') {
-        return { role: 'STUDENT', userId: uId, studentId: stuId, sectorId: secId };
+        return { role: 'STUDENT', userId: uId, organizationId: orgId, studentId: stuId, sectorId: secId };
       }
     }
   }
@@ -100,13 +126,17 @@ export async function extractAccessScope(
   // 2. Check if authUser was established by auth middleware
   if (req.authUser && req.authUser.userId && req.authUser.userId !== 'anonymous') {
     const r = req.authUser.role.toLowerCase();
-    if (r === 'super_admin' || r === 'admin' || r === 'bursar') {
-      return { role: 'SUPER_ADMIN', userId: req.authUser.userId };
+    if (r === 'super_admin') {
+      return { role: 'SUPER_ADMIN', userId: req.authUser.userId, organizationId: null };
+    }
+    if (r === 'admin' || r === 'bursar') {
+      return { role: 'ADMIN', userId: req.authUser.userId, organizationId: 'demo' };
     }
     if (r === 'sector_manager' || r === 'manager') {
       return {
         role: 'SECTOR_MANAGER',
         userId: req.authUser.userId,
+        organizationId: 'demo',
         sectorIds: ['dept-fiqh'],
       };
     }
@@ -114,6 +144,7 @@ export async function extractAccessScope(
       return {
         role: 'STUDENT',
         userId: req.authUser.userId,
+        organizationId: 'demo',
         studentId: req.authUser.userId,
         sectorId: 'dept-fiqh',
       };
@@ -127,35 +158,51 @@ export async function extractAccessScope(
     if (verified) return verified;
   }
 
-  // 4. In demo mode without explicit token, allow appState role or default to SUPER_ADMIN
+  // 4. In demo mode without explicit token, allow appState role or default to ADMIN
   const appStateRole =
     req.body && typeof req.body === 'object' && req.body.appState && typeof req.body.appState === 'object'
       ? (req.body.appState.role as string)
       : undefined;
 
+  const appStateOrg =
+    req.body && typeof req.body === 'object' && req.body.appState && typeof req.body.appState === 'object'
+      ? (String((req.body.appState.college as Record<string, unknown>)?.id || 'demo'))
+      : 'demo';
+
   if (appStateRole) {
     const r = String(appStateRole).toLowerCase();
-    if (r === 'admin' || r === 'super_admin') {
-      return { role: 'SUPER_ADMIN', userId: 'admin' };
+    if (r === 'super_admin') {
+      return { role: 'SUPER_ADMIN', userId: 'admin', organizationId: null };
+    }
+    if (r === 'admin') {
+      return { role: 'ADMIN', userId: 'admin', organizationId: appStateOrg };
     }
     if (r === 'manager' || r === 'sector_manager') {
       const sec = (req.body.appState.managerSector as string) || 'dept-fiqh';
-      return { role: 'SECTOR_MANAGER', userId: 'manager', sectorIds: [sec] };
+      return { role: 'SECTOR_MANAGER', userId: 'manager', organizationId: appStateOrg, sectorIds: [sec] };
     }
     if (r === 'student') {
       const stuId = (req.body.appState.meStudentId as string) || 'student';
-      return { role: 'STUDENT', userId: stuId, studentId: stuId, sectorId: 'dept-fiqh' };
+      return { role: 'STUDENT', userId: stuId, organizationId: appStateOrg, studentId: stuId, sectorId: 'dept-fiqh' };
     }
   }
 
   return {
-    role: 'SUPER_ADMIN',
+    role: 'ADMIN',
     userId: 'demo-admin',
+    organizationId: 'demo',
   };
 }
 
-export function isAllowedSector(scope: AccessScope, sectorId: string): boolean {
+export function isAllowedOrganization(scope: AccessScope, orgId: string): boolean {
   if (scope.role === 'SUPER_ADMIN') return true;
+  const currentOrg = 'organizationId' in scope && scope.organizationId ? scope.organizationId : 'demo';
+  return currentOrg.toLowerCase().trim() === orgId.toLowerCase().trim();
+}
+
+export function isAllowedSector(scope: AccessScope, sectorId: string, orgId?: string): boolean {
+  if (orgId && !isAllowedOrganization(scope, orgId)) return false;
+  if (scope.role === 'SUPER_ADMIN' || scope.role === 'ADMIN') return true;
   if (scope.role === 'SECTOR_MANAGER') {
     const norm = sectorId.toLowerCase().trim();
     return scope.sectorIds.some((s) => s.toLowerCase().trim() === norm);
@@ -166,11 +213,11 @@ export function isAllowedSector(scope: AccessScope, sectorId: string): boolean {
   return false;
 }
 
-export function isAllowedStudent(scope: AccessScope, studentId: string): boolean {
-  if (scope.role === 'SUPER_ADMIN') return true;
+export function isAllowedStudent(scope: AccessScope, studentId: string, orgId?: string): boolean {
+  if (orgId && !isAllowedOrganization(scope, orgId)) return false;
+  if (scope.role === 'SUPER_ADMIN' || scope.role === 'ADMIN') return true;
   if (scope.role === 'STUDENT') {
     return scope.studentId.toLowerCase().trim() === studentId.toLowerCase().trim();
   }
-  // Sector manager can access students within their sector, which is verified at data lookup
   return true;
 }

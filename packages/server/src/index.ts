@@ -14,6 +14,7 @@ import { createChipsRouter } from './routes/chips.ts';
 import { createIngestRouter } from './routes/ingest.ts';
 import { createTranscribeRouter } from './routes/transcribe.ts';
 import { createUploadRouter } from './routes/upload.ts';
+import { superAdminRouter } from './routes/superAdmin.ts';
 import { ActionLogStore } from './security/confirmation.ts';
 import { createIpRateLimiter, createUserRateLimiter, ResponseCache } from './security/limits.ts';
 import { ToolRegistry } from './tools/registry.ts';
@@ -170,6 +171,12 @@ export function mountAssistantRoutes(app: Express, runtime: AssistantRuntime): v
   );
 
   app.use(
+    '/api/super-admin',
+    assistantCors,
+    superAdminRouter
+  );
+
+  app.use(
     '/api/ingest',
     assistantCors,
     ipLimiter,
@@ -228,3 +235,6 @@ export * from './routes/chips.ts';
 export * from './db/assistantRepository.ts';
 export * from './llm/providerChain.ts';
 export * from './llm/summarizer.ts';
+export * from './routes/superAdmin.ts';
+export * from './db/scopedDataRepository.ts';
+export * from './tools/dataAccessTools.ts';

@@ -46,7 +46,19 @@
     "khaznaMarkNoticeRead",
     "khaznaSetTheme",
     "khaznaManageWorkspace",
-    "khaznaOpenInteractiveForm"
+    "khaznaOpenInteractiveForm",
+    "find_students",
+    "get_student",
+    "summarize_student_finance",
+    "find_sectors",
+    "summarize_sector_finance",
+    "report_class",
+    "report_defaulters",
+    "report_fund_utilization",
+    "get_receipt",
+    "list_organizations",
+    "summarize_platform_usage",
+    "query_data"
   ],
   "customTools": [],
   "api": {

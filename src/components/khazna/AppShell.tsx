@@ -50,7 +50,7 @@ import { sectorIcon, tileVar } from "./sector-meta";
 import { Logo } from "./Logo";
 
 const ROLE_META: Record<Role, { label: string; icon: LucideIcon }> = {
-  admin: { label: "Super Admin", icon: ShieldCheck },
+  admin: { label: "Admin", icon: ShieldCheck },
   manager: { label: "Sector Manager", icon: UserCog },
   student: { label: "Student", icon: GraduationCap },
 };
@@ -366,7 +366,7 @@ export function AppShell({ role, sectorSlug, children }: { role: Role; sectorSlu
 
   const user =
     role === "admin"
-      ? { name: college.adminName, sub: "Super Admin" }
+      ? { name: college.adminName, sub: "Admin" }
       : role === "manager"
         ? { name: currentManager, sub: `${current.name} manager` }
         : { name: me.name, sub: `${me.id} · ${me.className}` };
@@ -390,48 +390,17 @@ export function AppShell({ role, sectorSlug, children }: { role: Role; sectorSlu
           </button>
           <Logo />
 
-          {/* Organization Switcher */}
+          {/* College Workspace Badge (Organization scoped to Admin) */}
           <div className="hidden sm:block">
-            <KMenu
-              label="Switch college workspace"
-              trigger={
-                <button className="glass-inset flex h-10 items-center gap-2 px-2.5 text-xs text-foreground hover:bg-accent md:text-sm">
-                  <Building2 className="size-3.5 text-primary" />
-                  <span className="max-w-[120px] truncate font-medium md:max-w-[180px]">{college.name}</span>
-                  {college.demo ? (
-                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">Demo</span>
-                  ) : (
-                    <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" title="Live Workspace" />
-                  )}
-                  <ChevronDown className="size-3 text-muted-foreground" />
-                </button>
-              }
-            >
-              <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-subtle">College Workspaces</div>
-              {organizations.map((org) => (
-                <KMenuItem
-                  key={org.id}
-                  onSelect={() => {
-                    if (org.id !== college.id) {
-                      switchOrg(org.id);
-                      toast.success(`Switched to ${org.name}`);
-                      navigate({ to: "/admin" });
-                    }
-                  }}
-                  active={org.id === college.id}
-                >
-                  <Building2 className="size-4" />
-                  <span className="flex-1 truncate">{org.name}</span>
-                  {org.demo && <span className="ml-1 text-[10px] text-muted-foreground">(Demo)</span>}
-                  {org.id === college.id && <Check className="size-4 text-primary" />}
-                </KMenuItem>
-              ))}
-              <div className="my-1 border-t border-border/40" />
-              <KMenuItem onSelect={() => setNewOrgOpen(true)}>
-                <Plus className="size-4 text-primary" />
-                <span className="font-medium text-primary">New Organisation…</span>
-              </KMenuItem>
-            </KMenu>
+            <div className="glass-inset flex h-10 items-center gap-2 px-3 text-xs text-foreground md:text-sm">
+              <Building2 className="size-3.5 text-primary" />
+              <span className="max-w-[120px] truncate font-medium md:max-w-[180px]">{college.name}</span>
+              {college.demo ? (
+                <span className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">Demo</span>
+              ) : (
+                <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" title="Live Workspace" />
+              )}
+            </div>
           </div>
 
           <div className="ml-auto flex items-center gap-1.5 md:gap-2">
@@ -641,7 +610,7 @@ export function AppShell({ role, sectorSlug, children }: { role: Role; sectorSlu
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-subtle">Super Admin Name</label>
+                <label className="mb-1 block text-xs font-medium text-subtle">Admin Name</label>
                 <input
                   type="text"
                   required
@@ -652,7 +621,7 @@ export function AppShell({ role, sectorSlug, children }: { role: Role; sectorSlu
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-subtle">Super Admin Email</label>
+                <label className="mb-1 block text-xs font-medium text-subtle">Admin Email</label>
                 <input
                   type="email"
                   required

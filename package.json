@@ -18,7 +18,9 @@
     "ingest": "node node_modules/tsx/dist/cli.mjs packages/server/src/cli/ingest.ts",
     "eval": "node node_modules/tsx/dist/cli.mjs packages/server/src/cli/eval.ts",
     "seed:assistant-test": "node node_modules/tsx/dist/cli.mjs packages/server/src/cli/seedAssistantTest.ts",
-    "seed:chips-test": "node node_modules/tsx/dist/cli.mjs packages/server/src/cli/seedAssistantTest.ts"
+    "seed:chips-test": "node node_modules/tsx/dist/cli.mjs packages/server/src/cli/seedAssistantTest.ts",
+    "seed:data-access-test": "node node_modules/tsx/dist/cli.mjs scripts/seedDataAccessTest.ts",
+    "seed:multi-tenant-test": "node node_modules/tsx/dist/cli.mjs scripts/seedMultiTenantTest.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -53,6 +55,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.107.1",
     "@tanstack/react-router": "^1.170.46",
+    "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.3.0",
@@ -60,6 +63,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/three": "^0.187.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

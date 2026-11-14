@@ -9,3 +9,7 @@ coverage/
 .aistudio/
 .env*
 !.env.example
+backups/
+data/platform_admins.json
+data/platform_audit_logs.json
+

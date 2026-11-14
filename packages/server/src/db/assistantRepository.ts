@@ -327,7 +327,10 @@ export class AssistantRepository {
 
       if (this.client && !this.schemaMissing) {
         try {
-          await this.client.from('assistant_chip_usage').upsert(
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), 1500)
+          );
+          const upsertPromise = this.client.from('assistant_chip_usage').upsert(
             {
               user_id: userId,
               page_id: pageId,
@@ -337,8 +340,10 @@ export class AssistantRepository {
             },
             { onConflict: 'user_id,chip_id,page_id' }
           );
+          const { error } = (await Promise.race([upsertPromise, timeoutPromise])) as any;
+          if (error) this.schemaMissing = true;
         } catch {
-          // fallback
+          this.schemaMissing = true;
         }
       }
     }
@@ -360,7 +365,10 @@ export class AssistantRepository {
 
     if (this.client && !this.schemaMissing) {
       try {
-        await this.client.from('assistant_chip_usage').upsert(
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 1500)
+        );
+        const upsertPromise = this.client.from('assistant_chip_usage').upsert(
           {
             user_id: userId,
             page_id: pageId,
@@ -371,8 +379,10 @@ export class AssistantRepository {
           },
           { onConflict: 'user_id,chip_id,page_id' }
         );
+        const { error } = (await Promise.race([upsertPromise, timeoutPromise])) as any;
+        if (error) this.schemaMissing = true;
       } catch {
-        // fallback
+        this.schemaMissing = true;
       }
     }
   }

@@ -54,7 +54,7 @@ async function startServer() {
     });
   }
 
-  app.listen(port, '0.0.0.0', () => {
+  app.listen(port, () => {
     logger.info({ port, mode: isProd ? 'production' : 'development' }, 'Unified workspace server listening');
   });
 }

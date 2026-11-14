@@ -37,7 +37,7 @@ export const Route = createFileRoute("/login")({
       {
         name: "description",
         content:
-          "Create your college on Khazna or sign in as a Super Admin, sector manager or student.",
+          "Create your college on Khazna or sign in as an Admin, sector manager or student.",
       },
       { property: "og:title", content: "Sign in or create your college — Khazna" },
       { property: "og:description", content: "Create your college finance portal or sign in." },
@@ -49,7 +49,7 @@ export const Route = createFileRoute("/login")({
 });
 
 const DEMO: Record<Role, { label: string; icon: typeof ShieldCheck; hint: string }> = {
-  admin: { label: "Super Admin", icon: ShieldCheck, hint: "Full college overview" },
+  admin: { label: "Admin", icon: ShieldCheck, hint: "Full college overview" },
   manager: { label: "Sector Manager", icon: UserCog, hint: "Dept Fiqh ledger" },
   student: { label: "Student", icon: GraduationCap, hint: "Safwan K. · S0125" },
 };
@@ -148,7 +148,7 @@ function LoginPage() {
       return;
     }
     const m = st.managers.find((x) => x.email.toLowerCase() === id.toLowerCase());
-    if (!m) return setError("No sector manager with that email. Ask your Super Admin to add you.");
+    if (!m) return setError("No sector manager with that email. Ask your Admin to add you.");
     const sector = m.sectors.find((x) => st.sectors.some((s) => s.slug === x));
     if (!sector) return setError("You haven't been assigned a sector yet.");
     go({ to: "/m/$sectorSlug", params: { sectorSlug: sector } }, `Welcome back, ${m.name}`, () => {
@@ -301,7 +301,7 @@ function LoginPage() {
                 <p className="mt-0.5 text-xs text-muted-foreground sm:mt-1 sm:text-sm">
                   {mode === "signin"
                     ? "Choose who you are and sign in."
-                    : "Create the Super Admin account. You'll add sectors, managers and students next."}
+                    : "Create the Admin account. You'll add sectors, managers and students next."}
                 </p>
               </motion.div>
 

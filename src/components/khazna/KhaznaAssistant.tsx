@@ -46,7 +46,7 @@ export function KhaznaAssistant() {
           ? adminEmail || 'admin'
           : managerSector || 'manager';
 
-    let label = adminName || 'Super Admin';
+    let label = adminName || 'Admin';
     if (currentRole === 'student') {
       const stu = students.find((s) => s.id === meStudentId);
       label = stu ? `${stu.name} (${stu.id})` : 'Student';
@@ -315,7 +315,7 @@ export function KhaznaAssistant() {
       switch (command) {
         case 'SIGNUP_COLLEGE': {
           const college = String(payload.college || 'New Campus College').trim();
-          const name = String(payload.name || payload.fullName || 'Super Admin').trim();
+          const name = String(payload.name || payload.fullName || 'Admin').trim();
           const email = String(payload.email || 'admin@college.edu').trim().toLowerCase();
           const password = String(payload.password || '');
           st.signUpCollege({ college, name, email, password });
@@ -1349,7 +1349,7 @@ export function KhaznaAssistant() {
         'Add student',
         'Record ₹1500 credit deposit for Safwan K. in Office',
         'Post ₹500 Study Tour Fee batch for Fiqh 2',
-        'Open Super Admin demo dashboard',
+        'Open Admin demo dashboard',
       ]}
       theme={{
         primaryColor: '#f97316',

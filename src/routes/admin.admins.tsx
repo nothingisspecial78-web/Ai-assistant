@@ -60,7 +60,7 @@ function AdminsPage() {
           <ShieldCheck className="size-5" />
         </div>
         <div className="flex-1">
-          <div className="font-medium text-foreground">{college.adminName} · Super Admin</div>
+          <div className="font-medium text-foreground">{college.adminName} · Admin</div>
           <div className="text-xs text-muted-foreground">Full access to every sector, student and audit record. Cannot be reassigned from here.</div>
         </div>
         <Chip tone="primary">Owner</Chip>

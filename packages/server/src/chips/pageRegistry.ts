@@ -10,7 +10,7 @@ export interface ChipDef {
   label: LocalizedText;
   prompt: LocalizedText;
   icon?: string;
-  role: 'SUPER_ADMIN' | 'SECTOR_MANAGER' | 'STUDENT' | 'ALL';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'SECTOR_MANAGER' | 'STUDENT' | 'ALL';
   pageId: string;
   priority: number;
   dynamic?: boolean;
@@ -454,9 +454,15 @@ export function getRankedChips(params: {
   const eligible = CHIP_REGISTRY.filter((chip) => {
     // Role check
     if (chip.role !== 'ALL') {
-      if (scope.role === 'SUPER_ADMIN' && chip.role !== 'SUPER_ADMIN') return false;
-      if (scope.role === 'SECTOR_MANAGER' && chip.role !== 'SECTOR_MANAGER') return false;
-      if (scope.role === 'STUDENT' && chip.role !== 'STUDENT') return false;
+      if (scope.role === 'SUPER_ADMIN') {
+        if (chip.role !== 'SUPER_ADMIN' && chip.role !== 'ADMIN') return false;
+      } else if (scope.role === 'ADMIN') {
+        if (chip.role !== 'ADMIN' && chip.role !== 'SUPER_ADMIN') return false;
+      } else if (scope.role === 'SECTOR_MANAGER') {
+        if (chip.role !== 'SECTOR_MANAGER') return false;
+      } else if (scope.role === 'STUDENT') {
+        if (chip.role !== 'STUDENT') return false;
+      }
     }
     // Page check: match pageId or global
     if (chip.pageId === pageId || chip.pageId === 'global') return true;

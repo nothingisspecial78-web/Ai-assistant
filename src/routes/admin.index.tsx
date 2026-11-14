@@ -60,7 +60,7 @@ function AdminDashboard() {
   return (
     <div>
       <PageHeader
-        eyebrow="Super Admin · Dashboard"
+        eyebrow="Admin · Dashboard"
         title={
           <>
             Welcome back, <span className="text-gradient-primary">{college.adminName.split(" ")[0]}</span>
