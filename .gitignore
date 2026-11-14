@@ -5,5 +5,7 @@ coverage/
 .DS_Store
 *.log
 .playwright-cli/
+.antigravity/
+.aistudio/
 .env*
 !.env.example
