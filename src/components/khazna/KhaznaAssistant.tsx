@@ -1314,6 +1314,20 @@ export function KhaznaAssistant() {
     [router]
   );
 
+  const getAuthToken = useCallback(() => {
+    const st = useKhazna.getState();
+    const role = st.currentRole;
+    const userId =
+      role === 'student'
+        ? st.meStudentId || 'S0125'
+        : role === 'admin'
+          ? st.college.adminEmail || 'admin'
+          : st.managerSector || 'dept-fiqh';
+    const sectorId = st.managerSector || 'dept-fiqh';
+    const studentId = st.meStudentId || 'S0125';
+    return `demo:${role}:${userId}:${sectorId}:${studentId}`;
+  }, []);
+
   // Keep verification QR pages uncluttered for printing/auditing
   if (pathname.startsWith('/v/')) {
     return null;
@@ -1326,6 +1340,8 @@ export function KhaznaAssistant() {
       userKey={sessionIdentity.userKey}
       userLabel={sessionIdentity.userLabel}
       title="Khazna AI Agent"
+      getPageId={() => pathname}
+      getAuthToken={getAuthToken}
       getAppState={getAppState}
       onAppCommand={onAppCommand}
       suggestions={[

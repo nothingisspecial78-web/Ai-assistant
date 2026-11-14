@@ -17,6 +17,7 @@ export interface VectorStore {
     queryText: string;
     topK: number;
     minScore: number;
+    allowedVisibilities?: Array<'all' | 'manager' | 'admin'>;
   }): Promise<RetrievedChunk[]>;
   count(appId: string): Promise<number>;
 }
@@ -73,9 +74,15 @@ export class InMemoryVectorStore implements VectorStore {
     queryText: string;
     topK: number;
     minScore: number;
+    allowedVisibilities?: Array<'all' | 'manager' | 'admin'>;
   }): Promise<RetrievedChunk[]> {
-    const appChunks = this.namespaces.get(params.appId) || [];
+    let appChunks = this.namespaces.get(params.appId) || [];
     if (appChunks.length === 0) return [];
+
+    if (params.allowedVisibilities && params.allowedVisibilities.length > 0) {
+      const allowed = new Set(params.allowedVisibilities);
+      appChunks = appChunks.filter((c) => allowed.has(c.visibility || 'all'));
+    }
 
     const scored: RetrievedChunk[] = appChunks.map((chunk) => {
       const cos = Math.max(0, cosineSimilarity(params.queryEmbedding, chunk.embedding));
@@ -90,6 +97,7 @@ export class InMemoryVectorStore implements VectorStore {
         chunkIndex: chunk.chunkIndex,
         content: chunk.content,
         tokenCount: chunk.tokenCount,
+        visibility: chunk.visibility || 'all',
         metadata: chunk.metadata,
         score: Number(combined.toFixed(4)),
       };
@@ -180,17 +188,37 @@ export class SupabaseVectorStore implements VectorStore {
     queryText: string;
     topK: number;
     minScore: number;
+    allowedVisibilities?: Array<'all' | 'manager' | 'admin'>;
   }): Promise<RetrievedChunk[]> {
     if (this.schemaMissing) {
       return this.fallback.query(params);
     }
 
-    const { data, error } = await this.client.rpc('match_assistant_chunks', {
+    const visibilities = params.allowedVisibilities || ['all', 'manager', 'admin'];
+    let data: any[] | null = null;
+    let error: any = null;
+
+    // Try scoped match first if available
+    const scopedRes = await this.client.rpc('match_assistant_chunks_scoped', {
       query_embedding: params.queryEmbedding,
       filter_app_id: params.appId,
+      allowed_visibilities: visibilities,
       match_count: params.topK,
       min_similarity: params.minScore,
     });
+
+    if (!scopedRes.error && Array.isArray(scopedRes.data)) {
+      data = scopedRes.data;
+    } else {
+      const fallbackRes = await this.client.rpc('match_assistant_chunks', {
+        query_embedding: params.queryEmbedding,
+        filter_app_id: params.appId,
+        match_count: params.topK,
+        min_similarity: params.minScore,
+      });
+      data = fallbackRes.data;
+      error = fallbackRes.error;
+    }
 
     if (error || !Array.isArray(data)) {
       if (error && this.isMissingSchemaError(error)) {
@@ -214,7 +242,7 @@ export class SupabaseVectorStore implements VectorStore {
       }
     }
 
-    return data.map((row: Record<string, unknown>) => ({
+    const mapped = data.map((row: Record<string, unknown>) => ({
       id: String(row.id),
       appId: String(row.app_id),
       source: String(row.source),
@@ -222,9 +250,17 @@ export class SupabaseVectorStore implements VectorStore {
       chunkIndex: Number(row.chunk_index || 0),
       content: String(row.content),
       tokenCount: Number(row.token_count || 0),
+      visibility: (String(row.visibility || 'all') as 'all' | 'manager' | 'admin'),
       metadata: (row.metadata as Record<string, unknown>) || {},
       score: Number(Number(row.similarity || 0).toFixed(4)),
     }));
+
+    if (params.allowedVisibilities && params.allowedVisibilities.length > 0) {
+      const allowed = new Set(params.allowedVisibilities);
+      return mapped.filter((c) => allowed.has(c.visibility || 'all'));
+    }
+
+    return mapped;
   }
 
   async count(appId: string): Promise<number> {

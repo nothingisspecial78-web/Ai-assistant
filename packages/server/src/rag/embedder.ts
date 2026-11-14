@@ -128,6 +128,11 @@ export function createEmbedder(cfg: ServerConfig): Embedder {
 
   const hasRemoteKey = Boolean(openRouterClient || geminiClient);
 
+  // In-memory LRU cache (500 entries, 10-minute TTL)
+  const embeddingCache = new Map<string, { vector: number[]; timestamp: number }>();
+  const MAX_CACHE_SIZE = 500;
+  const CACHE_TTL_MS = 10 * 60 * 1000;
+
   return {
     mode: hasRemoteKey ? 'remote' : 'local',
 
@@ -162,8 +167,22 @@ export function createEmbedder(cfg: ServerConfig): Embedder {
     },
 
     async embedOne(text: string): Promise<number[]> {
+      const cleanKey = text.trim().slice(0, 1000);
+      const cached = embeddingCache.get(cleanKey);
+      const now = Date.now();
+      if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+        return cached.vector;
+      }
+
       const [first] = await this.embed([text]);
-      return first || computeLocalEmbedding(text);
+      const vec = first || computeLocalEmbedding(text);
+
+      if (embeddingCache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = embeddingCache.keys().next().value;
+        if (oldestKey) embeddingCache.delete(oldestKey);
+      }
+      embeddingCache.set(cleanKey, { vector: vec, timestamp: now });
+      return vec;
     },
   };
 }

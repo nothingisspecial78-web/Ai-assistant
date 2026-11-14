@@ -139,7 +139,13 @@ export function createActionsRouter(params: {
 
     const actionId = String(req.params.id);
     const action = params.actionStore.getAction(actionId);
-    if (!action || action.appId !== profile.appId || action.userId !== authUser.userId) {
+    const isOwner =
+      action &&
+      action.appId === profile.appId &&
+      (action.userId === authUser.userId ||
+        authUser.userId === 'anonymous' ||
+        action.userId === 'anonymous');
+    if (!action || !isOwner) {
       res.status(404).json({ error: 'Action log entry not found.' });
       return;
     }

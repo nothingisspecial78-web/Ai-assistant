@@ -47,6 +47,7 @@ export interface WidgetMessage {
   model?: string;
   refusal?: boolean;
   isStreaming?: boolean;
+  followUpChips?: Array<{ id: string; label: string; prompt: string }>;
 }
 
 type UiActionEventPayload = Extract<AssistantSseEvent, { type: 'ui_action' }>;
@@ -438,6 +439,10 @@ export function useChatStream({
                       formRequest: event.form,
                       formStatus: 'pending',
                     };
+                  case 'stream_reset':
+                    return { ...m, content: '', statusLabel: 'Reconnecting provider…' };
+                  case 'follow_up_chips':
+                    return { ...m, followUpChips: event.chips };
                   case 'done':
                     return {
                       ...m,

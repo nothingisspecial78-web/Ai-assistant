@@ -49,12 +49,34 @@ function splitByHeadings(markdown: string): MarkdownSection[] {
   return sections;
 }
 
+function inferVisibility(source: string, heading: string, text: string): 'all' | 'manager' | 'admin' {
+  const lower = `${source} ${heading} ${text.slice(0, 300)}`.toLowerCase();
+  if (
+    lower.includes('visibility: admin') ||
+    lower.includes('admin sop') ||
+    lower.includes('staff guidelines') ||
+    lower.includes('confidential admin') ||
+    lower.includes('super admin only')
+  ) {
+    return 'admin';
+  }
+  if (
+    lower.includes('visibility: manager') ||
+    lower.includes('sector manager guide') ||
+    lower.includes('manager only')
+  ) {
+    return 'manager';
+  }
+  return 'all';
+}
+
 export function chunkMarkdown(params: {
   appId: string;
   source: string;
   markdown: string;
   maxTokens?: number;
   overlapTokens?: number;
+  visibility?: 'all' | 'manager' | 'admin';
 }): DocumentChunk[] {
   const maxTokens = params.maxTokens ?? DEFAULT_CHUNK_TOKENS;
   const overlapTokens = params.overlapTokens ?? DEFAULT_CHUNK_OVERLAP_TOKENS;
@@ -64,6 +86,7 @@ export function chunkMarkdown(params: {
 
   for (const section of sections) {
     const sectionTokens = estimateTokens(section.body);
+    const vis = params.visibility || inferVisibility(params.source, section.heading, section.body);
     if (sectionTokens <= maxTokens) {
       chunks.push({
         id: `${params.appId}::${params.source}::${chunkIndex}`,
@@ -73,6 +96,7 @@ export function chunkMarkdown(params: {
         chunkIndex,
         content: section.body,
         tokenCount: sectionTokens,
+        visibility: vis,
       });
       chunkIndex += 1;
       continue;
@@ -96,6 +120,7 @@ export function chunkMarkdown(params: {
         chunkIndex,
         content,
         tokenCount: estimateTokens(content),
+        visibility: vis,
       });
       chunkIndex += 1;
       if (start + maxWords >= words.length) break;

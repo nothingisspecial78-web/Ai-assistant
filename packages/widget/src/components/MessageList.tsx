@@ -578,6 +578,42 @@ export function MessageList({
               )}
             </div>
 
+            {!isUser && !msg.isStreaming && msg.followUpChips && msg.followUpChips.length > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '6px',
+                  flexWrap: 'wrap',
+                  marginTop: '4px',
+                  maxWidth: '94%',
+                }}
+              >
+                {msg.followUpChips.map((chip) => (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    onClick={() => onSuggestionClick?.(chip.prompt)}
+                    style={{
+                      border: '1px solid var(--aia-hairline)',
+                      background: 'var(--aia-inset)',
+                      borderRadius: '0.65rem',
+                      padding: '4px 10px',
+                      fontSize: '11.5px',
+                      fontWeight: 500,
+                      color: 'var(--aia-primary)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span>{chip.label}</span>
+                    <ArrowUpRight size={11} />
+                  </button>
+                ))}
+              </div>
+            )}
+
             {msg.formRequest && onSubmitForm && onCancelForm && (
               <div style={{ width: '100%' }}>
                 <HumanInLoopFormCard

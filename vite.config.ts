@@ -13,6 +13,9 @@ export default defineConfig(() => {
         '@ai-assistant/widget': path.resolve(__dirname, 'packages/widget/src/index.ts'),
       },
     },
+    optimizeDeps: {
+      include: ['recharts', 'react-is'],
+    },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.

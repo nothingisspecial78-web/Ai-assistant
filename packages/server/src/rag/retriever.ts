@@ -1,5 +1,6 @@
 import type { AppProfile, RetrievedChunk, RightClickContext, SourceCitation } from '@ai-assistant/core';
 import type { ProfileRegistry } from '../profiles/loader.ts';
+import type { AccessScope } from '../security/scope.ts';
 import { chunkMarkdown } from './chunker.ts';
 import type { Embedder } from './embedder.ts';
 import type { EmbeddedChunk, VectorStore } from './store.ts';
@@ -95,9 +96,22 @@ export async function retrieveForQuery(params: {
   embedder: Embedder;
   store: VectorStore;
   bypassOutOfScopeGuard?: boolean;
+  scope?: AccessScope;
+  allowedVisibilities?: Array<'all' | 'manager' | 'admin'>;
 }): Promise<RetrievalOutcome> {
   const queryText = buildRetrievalQuery(params.question, params.context, params.contexts);
   const queryEmbedding = await params.embedder.embedOne(queryText);
+
+  let visibilities = params.allowedVisibilities;
+  if (!visibilities && params.scope) {
+    if (params.scope.role === 'SUPER_ADMIN') {
+      visibilities = ['all', 'manager', 'admin'];
+    } else if (params.scope.role === 'SECTOR_MANAGER') {
+      visibilities = ['all', 'manager'];
+    } else {
+      visibilities = ['all'];
+    }
+  }
 
   // First query with minScore=0 to inspect true topScore for logging and guard evaluation
   const rawTop = await params.store.query({
@@ -106,6 +120,7 @@ export async function retrieveForQuery(params: {
     queryText,
     topK: params.profile.retrieval.topK,
     minScore: 0,
+    allowedVisibilities: visibilities,
   });
 
   const topScore = rawTop.length > 0 ? rawTop[0].score : 0;

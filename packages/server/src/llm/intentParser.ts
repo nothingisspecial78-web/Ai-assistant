@@ -15,7 +15,10 @@ export function shouldUseAgentLoop(
   if (attachments.some((a) => a.type === 'file')) return true;
 
   const lower = question.trim().toLowerCase();
-  if (/^(how\s+(do|can|to)|what\s+(is|are|does|do|columns|files)|why\s+(did|does|is)|explain|describe)\b/i.test(lower)) {
+  if (
+    /^(how\s+(do|can|to)|what\s+(is|are|does|do|columns|files)|why\s+(did|does|is)|explain|describe)\b/i.test(lower) &&
+    !/\b(owe|due|dues|my balance|my fees?|how much.*(owe|pay|due|pending))\b/i.test(lower)
+  ) {
     return false;
   }
   if (/^can\s+i\b/i.test(lower) && !/\b(create|add|download|export|get|have|see|open|update)\b/i.test(lower)) {
@@ -23,7 +26,7 @@ export function shouldUseAgentLoop(
   }
 
   const actionVerbRegex =
-    /\b(create|add|enroll|enrol|register|insert|import|list|show|give|tell|get|view|fetch|find|search|filter|check|lookup|look\s+up|clear|open|switch|go\s+to|navigate|borrow|checkout|check\s+out|issue|lend|return|mark|unmark|unpay|revert|pay|paid|pending|settle|collect|dues|approve|click|do\s+this|do\s+it\s+for\s+me|run|execute|please\s+make|post|void|unvoid|restore|cancel|deposit|credit|debit|charge|batch|dark|light|demo|try|download|export|print|pdf|excel|xlsx|csv|statement|template|edit|update|rename|remove|delete|invite|assign|revoke|extend|toggle|form|account|stable|status|state|ledger|signup|sign\s*up|college|campus|display|report|overview|summary|balance|bulk|upload|phone|notice|notifications|workspace)\b/i;
+    /\b(create|add|enroll|enrol|register|insert|import|list|show|give|tell|get|view|fetch|find|search|filter|check|lookup|look\s+up|clear|open|switch|go\s+to|navigate|borrow|checkout|check\s+out|issue|lend|return|mark|unmark|unpay|revert|pay|paid|pending|settle|collect|dues|owe|approve|click|do\s+this|do\s+it\s+for\s+me|run|execute|please\s+make|post|void|unvoid|restore|cancel|deposit|credit|debit|charge|batch|dark|light|demo|try|download|export|print|pdf|excel|xlsx|csv|statement|template|edit|update|rename|remove|delete|invite|assign|revoke|extend|toggle|form|account|stable|status|state|ledger|signup|sign\s*up|college|campus|display|report|overview|summary|balance|bulk|upload|phone|notice|notifications|workspace)\b/i;
 
   return actionVerbRegex.test(lower);
 }
@@ -307,7 +310,12 @@ export function inferDeterministicToolCall(
     .trim();
 
   // 0. Khazna Campus Ledger deterministic intents (only active when khazna tools are registered)
-  if (tools.has('khaznaNavigate')) {
+  if (
+    tools.has('khaznaNavigate') ||
+    tools.has('khaznaGetOverview') ||
+    tools.has('khaznaGetStudentAccount') ||
+    tools.has('khaznaCreateEntry')
+  ) {
     const rawSectorInQuestion =
       /\b(office|dept[-.\s]*fiqh|department\s+fiqh|fiqh|dept[-.\s]*civil|department\s+civil|civil|velitcham[-.\s]*welfare|velitcham|ihsan[-.\s]*(?:union|scholarship)|ihsan)\b/i.exec(
         question
@@ -379,7 +387,8 @@ export function inferDeterministicToolCall(
       (/\b(account\s+(?:stable|status|state|balance|statement|ledger|dues|details|summary)|balance\s+(?:of|for)|dues\s+(?:of|for)|ledger\s+(?:of|for)|statement\s+(?:of|for))\b/i.test(
         lower
       ) ||
-        /\b[a-z]+\s+[a-z]+'s\s+(?:account|balance|dues|ledger)\b/i.test(lower))
+        /\b[a-z0-9_-]+'s\s+(?:account|balance|dues|ledger)\b/i.test(lower) ||
+        (/\bstudent\s+[a-z0-9_-]+\b/i.test(lower) && /\b(balance|dues?|fee|ledger|account)\b/i.test(lower)))
     ) {
       const nameFromOf =
         /\b(?:of|for)\s+(?:the\s+)?(?:student\s+)?([A-Za-z][A-Za-z .'-]{1,45}?)(?=\s+(?:in|under|from|at)\s+(?:department|dept|sector|office|fiqh|civil|velitcham|ihsan)\b|\s*[?,.;]|$)/i.exec(
@@ -411,10 +420,10 @@ export function inferDeterministicToolCall(
     // Current Display Report / Overview (strictly role-scoped on execute)
     if (
       tools.has('khaznaGetOverview') &&
-      (/\b(?:curren\w*\s+open\s+display\s+report|open\s+display\s+report|display\s+report|current\s+display|current\s+report|campus\s+overview|dashboard\s+summary|my\s+summary|my\s+balance|my\s+report)\b/i.test(
+      (/\b(?:curren\w*\s+open\s+display\s+report|open\s+display\s+report|display\s+report|current\s+display|current\s+report|campus\s+overview|dashboard\s+summary|my\s+summary|my\s+balance|my\s+report|how\s+much\s+(?:do\s+i\s+)?owe|what\s+do\s+i\s+owe|my\s+dues?|what\s+are\s+my\s+dues?|my\s+fees?|how\s+much\s+(?:fee|dues?))\b/i.test(
         lower
       ) ||
-        /\b(give|show|get|tell|read)\b.*\b(display\s+report|overview|summary|balance)\b/i.test(lower)) &&
+        /\b(give|show|get|tell|read)\b.*\b(display\s+report|overview|summary|balance|dues?)\b/i.test(lower)) &&
       !/\b(download|export|pdf|excel|xlsx|csv)\b/i.test(lower)
     ) {
       return { name: 'khaznaGetOverview', args: {} };
@@ -644,13 +653,26 @@ export function inferDeterministicToolCall(
       if (tools.has('khaznaPostBatch')) {
         const amount = amtMatch ? Number(amtMatch[1].replace(/,/g, '')) : 500;
         const type = /\b(credit|deposit|refund)\b/i.test(lower) ? 'credit' : 'debit';
-        const titleMatch = /\b(?:for|called|named|title)\s+([A-Za-z0-9 &'-]{2,40})/i.exec(question);
+        const sectorInQuestion =
+          /\b(?:for|in|under|to)?\s*(?:sector|dept)\s*[:=]?\s*([a-z0-9_-]+)/i.exec(question)?.[1] ||
+          sectorMatch;
+        const classInQuestion =
+          /\bclass\s*[:=]?\s*([a-z0-9 ]{2,30}?)(?=(?:\s*(?:for|in|amount|fee|type|[.,;]|$)))/i.exec(question)?.[1];
+        let titleCandidate = /\b(?:called|named|title)\s+([A-Za-z0-9 &'-]{2,40})/i.exec(question)?.[1];
+        if (!titleCandidate) {
+          const forM = /\bfor\s+([A-Za-z0-9 &'-]{2,40})/i.exec(question);
+          if (forM && !/\b(?:sector|dept|class)\b/i.test(forM[1])) {
+            titleCandidate = forM[1].trim();
+          }
+        }
         return {
           name: 'khaznaPostBatch',
           args: {
             type,
-            title: titleMatch?.[1]?.trim() || (type === 'debit' ? 'Study Tour Fee' : 'Batch Credit'),
+            title: titleCandidate?.trim() || (type === 'debit' ? 'Study Tour Fee' : 'Batch Credit'),
             amount: Number.isNaN(amount) || amount <= 0 ? 500 : amount,
+            ...(sectorInQuestion ? { sector: sectorInQuestion.trim() } : {}),
+            ...(classInQuestion ? { className: classInQuestion.trim() } : {}),
           },
         };
       }
@@ -813,31 +835,33 @@ export function inferDeterministicToolCall(
     }
 
     // Navigate routes / roles / demo
-    if (/\b(try\s+demo|open\s+demo|load\s+demo)\b/i.test(lower)) {
-      const role = /\bmanager\b/i.test(lower)
-        ? 'manager'
-        : /\bstudent\b/i.test(lower)
-          ? 'student'
-          : 'admin';
-      return { name: 'khaznaNavigate', args: { role, loadDemo: true } };
-    }
-    if (/\b(open|go\s+to|switch\s+to|navigate\s+to|show)\b/i.test(lower)) {
-      if (/\baudit\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/audit', role: 'admin' } };
-      if (/\bissued\s+reports?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/issued-reports', role: 'admin' } };
-      if (/\breports?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: `/m/${sectorMatch || 'dept-fiqh'}/reports`, role: 'manager', sector: sectorMatch } };
-      if (/\badmins?\b|\bmanagers?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/admins', role: 'admin' } };
-      if (/\binstitution\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/institution', role: 'admin' } };
-      if (/\bbulk\s+import\b|\bimport\s+students?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/students/import', role: 'admin' } };
-      if (/\bstudent\s+directory\b|\bstudents?\s+(?:page|view|list)\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/students', role: 'admin' } };
-      if (/\bsectors?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/sectors', role: 'admin' } };
-      if (/\bnotifications?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/app/notifications', role: 'student' } };
-      if (/\bprofile\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/app/profile', role: 'student' } };
-      if (/\bbatches?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: `/m/${sectorMatch || 'dept-fiqh'}/batches`, role: 'manager', sector: sectorMatch } };
-      if (/\bbulk\s+entry\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: `/m/${sectorMatch || 'dept-fiqh'}/bulk`, role: 'manager', sector: sectorMatch } };
-      if (/\bledger\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: `/m/${sectorMatch || 'dept-fiqh'}/ledger`, role: 'manager', sector: sectorMatch } };
-      if (/\bsuper\s+admin\b|\badmin\s+(?:dashboard|portal|view)\b/i.test(lower)) return { name: 'khaznaNavigate', args: { role: 'admin' } };
-      if (/\bsector\s+manager\b|\bmanager\s+(?:dashboard|portal|view)\b/i.test(lower)) return { name: 'khaznaNavigate', args: { role: 'manager', sector: sectorMatch } };
-      if (/\bstudent\s+(?:dashboard|portal|view)\b/i.test(lower)) return { name: 'khaznaNavigate', args: { role: 'student' } };
+    if (tools.has('khaznaNavigate')) {
+      if (/\b(try\s+demo|open\s+demo|load\s+demo)\b/i.test(lower)) {
+        const role = /\bmanager\b/i.test(lower)
+          ? 'manager'
+          : /\bstudent\b/i.test(lower)
+            ? 'student'
+            : 'admin';
+        return { name: 'khaznaNavigate', args: { role, loadDemo: true } };
+      }
+      if (/\b(open|go\s+to|switch\s+to|navigate\s+to|show)\b/i.test(lower)) {
+        if (/\baudit\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/audit', role: 'admin' } };
+        if (/\bissued\s+reports?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/issued-reports', role: 'admin' } };
+        if (/\breports?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: `/m/${sectorMatch || 'dept-fiqh'}/reports`, role: 'manager', sector: sectorMatch } };
+        if (/\badmins?\b|\bmanagers?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/admins', role: 'admin' } };
+        if (/\binstitution\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/institution', role: 'admin' } };
+        if (/\bbulk\s+import\b|\bimport\s+students?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/students/import', role: 'admin' } };
+        if (/\bstudent\s+directory\b|\bstudents?\s+(?:page|view|list)\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/students', role: 'admin' } };
+        if (/\bsectors?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/admin/sectors', role: 'admin' } };
+        if (/\bnotifications?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/app/notifications', role: 'student' } };
+        if (/\bprofile\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: '/app/profile', role: 'student' } };
+        if (/\bbatches?\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: `/m/${sectorMatch || 'dept-fiqh'}/batches`, role: 'manager', sector: sectorMatch } };
+        if (/\bbulk\s+entry\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: `/m/${sectorMatch || 'dept-fiqh'}/bulk`, role: 'manager', sector: sectorMatch } };
+        if (/\bledger\b/i.test(lower)) return { name: 'khaznaNavigate', args: { route: `/m/${sectorMatch || 'dept-fiqh'}/ledger`, role: 'manager', sector: sectorMatch } };
+        if (/\bsuper\s+admin\b|\badmin\s+(?:dashboard|portal|view)\b/i.test(lower)) return { name: 'khaznaNavigate', args: { role: 'admin' } };
+        if (/\bsector\s+manager\b|\bmanager\s+(?:dashboard|portal|view)\b/i.test(lower)) return { name: 'khaznaNavigate', args: { role: 'manager', sector: sectorMatch } };
+        if (/\bstudent\s+(?:dashboard|portal|view)\b/i.test(lower)) return { name: 'khaznaNavigate', args: { role: 'student' } };
+      }
     }
   }
 

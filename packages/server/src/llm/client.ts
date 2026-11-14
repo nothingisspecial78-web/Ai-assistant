@@ -6,6 +6,7 @@ import {
   type RetrievedChunk,
 } from '@ai-assistant/core';
 import { logger, type ServerConfig } from '../config.ts';
+import { ProviderFallbackChain } from './providerChain.ts';
 
 export interface LlmChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -59,13 +60,23 @@ export async function compressScreenshotDataUrl(dataUrl: string): Promise<string
 
 export interface LlmGateway {
   readonly hasLiveProvider: boolean;
+  readonly chain: ProviderFallbackChain;
   streamChat(params: {
     model: string;
     messages: LlmChatMessage[];
     onDelta: (text: string) => void;
+    onStreamReset?: () => void;
     retrievedChunks?: RetrievedChunk[];
     language?: 'en' | 'ml';
-  }): Promise<{ fullText: string; modelUsed: string; usage?: LlmCompletionResult['usage'] }>;
+    signal?: AbortSignal;
+  }): Promise<{
+    fullText: string;
+    modelUsed: string;
+    provider?: string;
+    ttftMs?: number;
+    totalMs?: number;
+    usage?: LlmCompletionResult['usage'];
+  }>;
 
   completeWithTools(params: {
     model: string;
@@ -73,7 +84,8 @@ export interface LlmGateway {
     tools: OpenAiToolSpec[];
     retrievedChunks?: RetrievedChunk[];
     language?: 'en' | 'ml';
-  }): Promise<LlmCompletionResult>;
+    signal?: AbortSignal;
+  }): Promise<LlmCompletionResult & { provider?: string }>;
 }
 
 function buildGroundedLocalAnswer(
@@ -193,191 +205,82 @@ function messagesContainImage(messages: LlmChatMessage[]): boolean {
 }
 
 export function createLlmGateway(cfg: ServerConfig): LlmGateway {
-  const targets: ProviderTarget[] = [];
-
-  const openRouterTarget = (): ProviderTarget | null =>
-    cfg.openRouterApiKey
-      ? {
-          name: 'openrouter',
-          client: new OpenAI({
-            apiKey: cfg.openRouterApiKey,
-            baseURL: cfg.llmBaseUrl,
-            timeout: cfg.llmTimeoutMs,
-            defaultHeaders: {
-              'X-Title': 'Embeddable AI Assistant',
-            },
-          }),
-          supportsVision: true,
-          mapModel: (requested) =>
-            Array.from(
-              new Set(
-                [
-                  requested === 'openai/gpt-4o' ? 'openai/gpt-4o-mini' : requested,
-                  cfg.modelFast,
-                  cfg.modelFallback,
-                  'openai/gpt-4o-mini',
-                ].filter(Boolean)
-              )
-            ),
-        }
-      : null;
-
-  const groqTarget = (): ProviderTarget | null =>
-    cfg.groqApiKey
-      ? {
-          name: 'groq',
-          client: new OpenAI({
-            apiKey: cfg.groqApiKey,
-            baseURL: 'https://api.groq.com/openai/v1',
-            timeout: cfg.llmTimeoutMs,
-          }),
-          supportsVision: false,
-          mapModel: (requested) =>
-            requested === cfg.modelStrong
-              ? ['openai/gpt-oss-120b', 'openai/gpt-oss-20b']
-              : ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'],
-        }
-      : null;
-
-  const geminiTarget = (): ProviderTarget | null =>
-    cfg.geminiApiKey
-      ? {
-          name: 'gemini',
-          client: new OpenAI({
-            apiKey: cfg.geminiApiKey,
-            baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-            timeout: cfg.llmTimeoutMs,
-          }),
-          supportsVision: true,
-          mapModel: () => ['gemini-2.5-flash'],
-        }
-      : null;
-
-  const builders: Record<'openrouter' | 'groq' | 'gemini', () => ProviderTarget | null> = {
-    openrouter: openRouterTarget,
-    groq: groqTarget,
-    gemini: geminiTarget,
-  };
-
-  const order: Array<'openrouter' | 'groq' | 'gemini'> =
-    cfg.llmProvider === 'openrouter'
-      ? ['openrouter', 'groq', 'gemini']
-      : cfg.llmProvider === 'gemini'
-        ? ['gemini', 'groq', 'openrouter']
-        : cfg.groqApiKey
-          ? ['groq', 'openrouter', 'gemini']
-          : ['openrouter', 'groq', 'gemini'];
-
-  for (const name of order) {
-    const built = builders[name]();
-    if (built) targets.push(built);
-  }
+  const chain = new ProviderFallbackChain(cfg);
+  const hasLiveProvider = chain.getProviders().some((p) => p.isConfigured());
 
   return {
-    hasLiveProvider: targets.length > 0,
+    hasLiveProvider,
+    chain,
 
-    async streamChat({ model, messages, onDelta, retrievedChunks = [], language = 'en' }) {
+    async streamChat({
+      model,
+      messages,
+      onDelta,
+      onStreamReset,
+      retrievedChunks = [],
+      language = 'en',
+      signal,
+    }) {
       const hasImage = messagesContainImage(messages);
-      const eligibleTargets = targets.filter((t) => !hasImage || t.supportsVision);
+      const modelType = hasImage ? 'vision' : model === cfg.modelStrong ? 'strong' : 'fast';
 
-      if (eligibleTargets.length === 0) {
-        const synthesized = buildGroundedLocalAnswer(messages, retrievedChunks, language);
-        for (const token of synthesized.split(/(\s+)/)) {
-          if (token) onDelta(token);
-        }
-        return { fullText: synthesized, modelUsed: 'local-grounded-fallback' };
-      }
-
-      for (const target of eligibleTargets) {
-        const candidates = target.mapModel(model);
-        for (const resolvedModel of candidates) {
-          let emittedAny = false;
-          try {
-            const stream = await target.client.chat.completions.create({
-              model: resolvedModel,
-              messages: messages as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-              stream: true,
+      if (hasLiveProvider) {
+        try {
+          const res = await chain.streamChat(
+            {
+              modelType,
+              messages,
               temperature: 0.2,
-              max_tokens: 1500,
-            });
-
-            let fullText = '';
-            for await (const chunk of stream) {
-              const delta = chunk.choices?.[0]?.delta?.content;
-              if (delta) {
-                emittedAny = true;
-                fullText += delta;
-                onDelta(delta);
-              }
+              maxTokens: 650,
+            },
+            {
+              signal,
+              onDelta,
+              onStreamReset,
             }
-            if (fullText.trim().length > 0) {
-              return { fullText, modelUsed: `${target.name}:${resolvedModel}` };
-            }
-            if (!emittedAny) {
-              logger.warn({ provider: target.name, resolvedModel }, 'LLM stream returned empty output; trying next candidate');
-            }
-          } catch (err) {
-            logger.warn({ err, provider: target.name, resolvedModel }, 'LLM stream attempt failed; trying next candidate');
-            if (emittedAny) break;
-          }
+          );
+          return res;
+        } catch (err) {
+          logger.warn({ err }, 'All providers in fallback chain failed for streamChat; falling back to local grounded answer');
         }
       }
 
       const synthesized = buildGroundedLocalAnswer(messages, retrievedChunks, language);
-      onDelta(synthesized);
-      return { fullText: synthesized, modelUsed: 'local-grounded-fallback' };
+      for (const token of synthesized.split(/(\s+)/)) {
+        if (token) onDelta(token);
+      }
+      return {
+        fullText: synthesized,
+        modelUsed: 'local-grounded-fallback',
+        provider: 'local',
+        ttftMs: 10,
+        totalMs: 30,
+      };
     },
 
-    async completeWithTools({ model, messages, tools, retrievedChunks = [], language = 'en' }) {
-      const hasImage = messagesContainImage(messages);
-      const eligibleTargets = targets.filter((t) => !hasImage || t.supportsVision);
-
-      if (eligibleTargets.length === 0) {
-        const synthesized = buildGroundedLocalAnswer(messages, retrievedChunks, language);
-        return {
-          content: synthesized,
-          toolCalls: [],
-          modelUsed: 'local-grounded-fallback',
-        };
-      }
-
-      for (const target of eligibleTargets) {
-        const candidates = target.mapModel(model);
-        for (const resolvedModel of candidates) {
-          try {
-            const res = await target.client.chat.completions.create({
-              model: resolvedModel,
-              messages: messages as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-              tools: tools.length > 0 ? tools : undefined,
-              tool_choice: tools.length > 0 ? 'auto' : undefined,
+    async completeWithTools({
+      model: _model,
+      messages,
+      tools,
+      retrievedChunks = [],
+      language = 'en',
+      signal,
+    }) {
+      if (hasLiveProvider && tools.length > 0) {
+        try {
+          const res = await chain.completeWithTools(
+            {
+              modelType: 'strong',
+              messages,
+              tools,
               temperature: 0.1,
-              max_tokens: 650,
-            });
-
-            const choice = res.choices?.[0]?.message;
-            const toolCalls = (choice?.tool_calls || [])
-              .filter((tc): tc is OpenAI.Chat.Completions.ChatCompletionMessageFunctionToolCall => tc.type === 'function')
-              .map((tc) => ({
-                id: tc.id,
-                name: tc.function.name,
-                argumentsJson: tc.function.arguments || '{}',
-              }));
-
-            return {
-              content: choice?.content || '',
-              toolCalls,
-              modelUsed: `${target.name}:${resolvedModel}`,
-              usage: res.usage
-                ? {
-                    promptTokens: res.usage.prompt_tokens,
-                    completionTokens: res.usage.completion_tokens,
-                    totalTokens: res.usage.total_tokens,
-                  }
-                : undefined,
-            };
-          } catch (err) {
-            logger.warn({ err, provider: target.name, resolvedModel }, 'Tool completion attempt failed; trying next candidate');
-          }
+              maxTokens: 650,
+            },
+            { signal }
+          );
+          return res;
+        } catch (err) {
+          logger.warn({ err }, 'All providers in fallback chain failed for completeWithTools; falling back to local grounded answer');
         }
       }
 
@@ -385,6 +288,7 @@ export function createLlmGateway(cfg: ServerConfig): LlmGateway {
         content: buildGroundedLocalAnswer(messages, retrievedChunks, language),
         toolCalls: [],
         modelUsed: 'local-grounded-fallback',
+        provider: 'local',
       };
     },
   };

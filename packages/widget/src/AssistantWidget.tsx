@@ -29,6 +29,7 @@ export interface AssistantWidgetProps {
   apiUrl: string;
   userKey?: string;
   userLabel?: string;
+  getPageId?: () => string;
   getAuthToken?: () => string | Promise<string>;
   getAppState?: () => Record<string, unknown>;
   onAppCommand?: (command: string, payload: Record<string, unknown>) => void;
@@ -45,6 +46,7 @@ export function AssistantWidget({
   apiUrl,
   userKey,
   userLabel,
+  getPageId,
   getAuthToken,
   getAppState,
   onAppCommand,
@@ -66,6 +68,8 @@ export function AssistantWidget({
   const [isMobileViewport, setIsMobileViewport] = useState(
     () => typeof window !== 'undefined' && window.innerWidth <= 640
   );
+  const [dynamicChips, setDynamicChips] = useState<Array<{ id: string; label: string; prompt: string }>>([]);
+  const chipsCacheRef = useRef<Map<string, Array<{ id: string; label: string; prompt: string }>>>(new Map());
 
   const position = theme?.position || (rtl ? 'left' : 'right');
 
@@ -131,6 +135,47 @@ export function AssistantWidget({
     onUiAction: handleUiAction,
     onMessagesChange: syncActiveMessages,
   });
+
+  // Fetch dynamic chips when opening panel or navigating pages
+  useEffect(() => {
+    if (!open) return;
+    const pageId = getPageId ? getPageId() : 'global';
+    const lang = personalization.preferredLanguage || 'en';
+    const cacheKey = `${pageId}:${lang}`;
+
+    if (chipsCacheRef.current.has(cacheKey)) {
+      setDynamicChips(chipsCacheRef.current.get(cacheKey) || []);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const token = getAuthToken ? await getAuthToken() : '';
+        const headers: Record<string, string> = { 'x-app-id': appId };
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const res = await fetch(
+          `${apiUrl.replace(/\/$/, '')}/api/assistant/chips?pageId=${encodeURIComponent(pageId)}&lang=${encodeURIComponent(lang)}`,
+          { headers, signal: controller.signal }
+        );
+        if (res.ok) {
+          const data = (await res.json()) as { chips?: Array<{ id: string; label: string; prompt: string }> };
+          if (Array.isArray(data.chips) && data.chips.length > 0) {
+            chipsCacheRef.current.set(cacheKey, data.chips);
+            setDynamicChips(data.chips);
+          }
+        }
+      } catch {
+        // fallback to default suggestions
+      }
+    }, 150);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [open, getPageId, getAuthToken, apiUrl, appId, personalization.preferredLanguage]);
 
   // Reset transient overlays when switching appId or userKey
   useEffect(() => {
@@ -361,10 +406,23 @@ export function AssistantWidget({
 
           <MessageList
             messages={messages}
-            suggestions={suggestions}
+            suggestions={
+              dynamicChips.length > 0
+                ? dynamicChips.map((c) => c.prompt)
+                : suggestions
+            }
             mobileCompactMode={isMobileViewport && mobileMode === 'compact'}
             onExpandMobileHistory={() => setMobileMode('full')}
             onSuggestionClick={(q) => {
+              const matched = dynamicChips.find((c) => c.prompt === q);
+              if (matched) {
+                const pageId = getPageId ? getPageId() : 'global';
+                void fetch(`${apiUrl.replace(/\/$/, '')}/api/assistant/chips/click`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ chipId: matched.id, pageId }),
+                }).catch(() => {});
+              }
               void sendMessage({
                 text: q,
                 contexts: pendingContexts.length > 0 ? pendingContexts : undefined,

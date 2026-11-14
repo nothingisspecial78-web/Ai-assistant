@@ -25,6 +25,10 @@ import {
   type OpenAiToolSpec,
 } from './client.ts';
 import { buildSystemPrompt, trimHistoryToBudget } from './prompts.ts';
+import type { AccessScope } from '../security/scope.ts';
+import type { AssistantRepository } from '../db/assistantRepository.ts';
+import { getRankedChips, resolvePageId } from '../chips/pageRegistry.ts';
+import { summarizeConversationBackground } from './summarizer.ts';
 
 export { inferDeterministicToolCall, shouldUseAgentLoop } from './intentParser.ts';
 
@@ -115,12 +119,16 @@ export async function runChatAgent(params: {
   cache: ResponseCache;
   emit: (event: AssistantSseEvent) => void;
   maxSteps?: number;
+  scope?: AccessScope;
+  repository?: AssistantRepository;
+  conversationId?: string;
 }): Promise<{
   refusal: boolean;
   model: string;
   topScore: number;
   citations: SourceCitation[];
   latencyMs: number;
+  provider?: string;
 }> {
   const startMs = Date.now();
   const {
@@ -143,9 +151,13 @@ export async function runChatAgent(params: {
     cache,
     emit,
     maxSteps = DEFAULT_AGENT_MAX_STEPS,
+    scope,
+    repository,
+    conversationId,
   } = params;
 
-  const trimmedHistory = trimHistoryToBudget(messages);
+  // Cap history to 12 messages max
+  const trimmedHistory = trimHistoryToBudget(messages, 2500).slice(-12);
   const lastUserMsg = [...trimmedHistory].reverse().find((m) => m.role === 'user');
   const question = lastUserMsg?.content || '';
   const effectiveLangReq =
@@ -164,7 +176,7 @@ export async function runChatAgent(params: {
   const imageAttachments = attachments.filter((a) => a.type === 'image' && a.dataUrl);
   const fileAttachments = attachments.filter((a) => a.type === 'file');
   const hasScreenshot = imageAttachments.length > 0;
-  const tools = toolRegistry.getToolsForProfile(profile);
+  const tools = toolRegistry.getToolsForProfile(profile, scope);
   const useTools = shouldUseAgentLoop(question, profile, attachments);
 
   emit({ type: 'status', phase: 'thinking', label: 'Analyzing request & active context…' });
@@ -216,7 +228,7 @@ export async function runChatAgent(params: {
 
   const hasDomainEntityAction =
     useTools &&
-    /\b(student|students|sector|sectors|union|fund|funds|charity|grant|endowment|fee|fees|admission|book|books|loan|loans|catalog|library|tab|khazna|ledger|receipt|void|unvoid|batch|class|deposit|debit|credit|tuition|mess|fiqh|civil|ihsan|velitcham|audit|report|reports|issued|notifications|notice|profile|signatory|institution|download|export|print|pdf|excel|xlsx|csv|statement|template|phone|org|workspace|edit|invite|revoke|extend|theme|dark|light|demo|admin|manager|account|signup|sign\s*up|college|campus|password|display|overview|summary|balance|bulk|upload|stable|dues|collect|paid|status)\b/i.test(
+    /\b(student|students|sector|sectors|union|fund|funds|charity|grant|endowment|fee|fees|admission|book|books|loan|loans|catalog|library|tab|khazna|ledger|receipt|void|unvoid|batch|class|deposit|debit|credit|tuition|mess|fiqh|civil|ihsan|velitcham|audit|report|reports|issued|notifications|notice|profile|signatory|institution|download|export|print|pdf|excel|xlsx|csv|statement|template|phone|org|workspace|edit|invite|revoke|extend|theme|dark|light|demo|admin|manager|account|signup|sign\s*up|college|campus|password|display|overview|summary|balance|bulk|upload|stable|dues|owe|owes|collect|paid|status)\b/i.test(
       question
     );
 
@@ -227,6 +239,7 @@ export async function runChatAgent(params: {
     contexts: mergedContexts,
     embedder,
     store: vectorStore,
+    scope,
     bypassOutOfScopeGuard:
       hasScreenshot ||
       fileAttachments.length > 0 ||
@@ -278,6 +291,8 @@ export async function runChatAgent(params: {
     agentMode: useTools && !hasScreenshot,
     appState,
     personalization,
+    scope,
+    userId,
   });
 
   const llmMessages: LlmChatMessage[] = [{ role: 'system', content: systemPrompt }];
@@ -318,12 +333,13 @@ export async function runChatAgent(params: {
   // 4. Plain Q&A or Vision streaming path (MODEL_FAST / MODEL_VISION)
   if (!useTools || hasScreenshot) {
     const selectedModel = hasScreenshot ? cfg.modelVision : cfg.modelFast;
-    const { fullText, modelUsed } = await llm.streamChat({
+    const { fullText, modelUsed, provider } = await llm.streamChat({
       model: selectedModel,
       messages: llmMessages,
       retrievedChunks: retrieval.chunks,
       language: detectedLang,
       onDelta: (delta) => emit({ type: 'token', delta }),
+      onStreamReset: () => emit({ type: 'stream_reset' }),
     });
 
     if (cacheKey && fullText) {
@@ -335,17 +351,53 @@ export async function runChatAgent(params: {
       });
     }
 
+    // Follow-up prompt chips for active role & page
+    const effectiveScope = scope || {
+      role: 'STUDENT' as const,
+      userId,
+      studentId: userId,
+      sectorId: 'dept-fiqh',
+    };
+    const pageId = resolvePageId(
+      mergedContexts[0]?.routePath || (appState?.pathname as string) || ''
+    );
+    const followUp = getRankedChips({
+      scope: effectiveScope,
+      pageId,
+      lang: detectedLang,
+      limit: 3,
+    });
+    emit({ type: 'follow_up_chips', chips: followUp });
+
+    if (repository && scope) {
+      const convId = conversationId || 'conv-default';
+      void repository.appendMessage(convId, scope, 'user', question);
+      void repository.appendMessage(convId, scope, 'assistant', fullText);
+      if (messages.length >= 12) {
+        void summarizeConversationBackground({
+          conversationId: convId,
+          scope,
+          messages,
+          repository,
+          llm,
+          cfg,
+        });
+      }
+    }
+
     const latencyMs = Date.now() - startMs;
     emit({
       type: 'done',
       refusal: false,
       model: modelUsed,
+      provider: provider || 'openrouter',
       latencyMs,
       sources: retrieval.citations,
     });
     return {
       refusal: false,
       model: modelUsed,
+      provider: provider || 'openrouter',
       topScore: retrieval.topScore,
       citations: retrieval.citations,
       latencyMs,
@@ -429,11 +481,47 @@ export async function runChatAgent(params: {
     if (completion.toolCalls.length === 0) {
       const answer = completion.content || 'Done.';
       emit({ type: 'token', delta: answer });
+
+      // Follow-up prompt chips for active role & page
+      const effectiveScope = scope || {
+        role: 'STUDENT' as const,
+        userId,
+        studentId: userId,
+        sectorId: 'dept-fiqh',
+      };
+      const pageId = resolvePageId(
+        mergedContexts[0]?.routePath || (appState?.pathname as string) || ''
+      );
+      const followUp = getRankedChips({
+        scope: effectiveScope,
+        pageId,
+        lang: detectedLang,
+        limit: 3,
+      });
+      emit({ type: 'follow_up_chips', chips: followUp });
+
+      if (repository && scope) {
+        const convId = conversationId || 'conv-default';
+        void repository.appendMessage(convId, scope, 'user', question);
+        void repository.appendMessage(convId, scope, 'assistant', answer);
+        if (messages.length >= 12) {
+          void summarizeConversationBackground({
+            conversationId: convId,
+            scope,
+            messages,
+            repository,
+            llm,
+            cfg,
+          });
+        }
+      }
+
       const latencyMs = Date.now() - startMs;
       emit({
         type: 'done',
         refusal: false,
         model: modelUsed,
+        provider: 'openrouter',
         latencyMs,
         sources: retrieval.citations,
         actionLogId: lastActionLogId,
@@ -441,6 +529,7 @@ export async function runChatAgent(params: {
       return {
         refusal: false,
         model: modelUsed,
+        provider: 'openrouter',
         topScore: retrieval.topScore,
         citations: retrieval.citations,
         latencyMs,
@@ -517,6 +606,29 @@ export async function runChatAgent(params: {
       const safeArgs = redactSensitiveArgs(cleanArgs) as Record<string, unknown>;
 
       emit({ type: 'status', phase: 'checking_permissions', label: 'Checking role & permissions…' });
+
+      // Strict role-based parameter security enforcement
+      if (scope) {
+        if (scope.role === 'SECTOR_MANAGER') {
+          const reqSector = String(cleanArgs.sector || cleanArgs.sectorCode || cleanArgs.sectorSlug || '').trim();
+          if (reqSector && !scope.sectorIds.some((s) => s.toLowerCase() === reqSector.toLowerCase())) {
+            const deniedSummary = `Access denied: You only have access to your assigned sector (${scope.sectorIds.join(', ')}).`;
+            emit({ type: 'token', delta: deniedSummary });
+            const latencyMs = Date.now() - startMs;
+            emit({ type: 'done', refusal: false, model: modelUsed, latencyMs, sources: [] });
+            return { refusal: false, model: modelUsed, topScore: 1, citations: [], latencyMs };
+          }
+        } else if (scope.role === 'STUDENT') {
+          const reqStu = String(cleanArgs.studentId || '').trim();
+          if (reqStu && reqStu.toLowerCase() !== scope.studentId.toLowerCase()) {
+            const deniedSummary = `Access denied: You can only view your own records (${scope.studentId}).`;
+            emit({ type: 'token', delta: deniedSummary });
+            const latencyMs = Date.now() - startMs;
+            emit({ type: 'done', refusal: false, model: modelUsed, latencyMs, sources: [] });
+            return { refusal: false, model: modelUsed, topScore: 1, citations: [], latencyMs };
+          }
+        }
+      }
 
       // IMMEDIATE AGENT ACTIONS (UI-click triggers AND auto-executing single-record mutations with Undo support)
       if (tool.uiTrigger || (tool.risk === 'write' && tool.autoExecute)) {

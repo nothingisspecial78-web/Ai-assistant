@@ -4,6 +4,7 @@ import {
   type AppProfile,
   type DeclarativeToolDefinition,
 } from '@ai-assistant/core';
+import type { AccessScope } from '../security/scope.ts';
 import { resolveAppBaseUrl } from '../auth.ts';
 import { KHAZNA_BUILTIN_TOOLS } from './khaznaTools.ts';
 import type { ToolDefinition, ToolExecutionContext, ToolExecutionResult } from './types.ts';
@@ -1168,8 +1169,44 @@ const BUILTIN_TOOLS: Record<string, ToolDefinition> = {
   ...KHAZNA_BUILTIN_TOOLS,
 };
 
+const STUDENT_ALLOWED_TOOLS = new Set([
+  'khaznaGetOverview',
+  'khaznaGetStudentAccount',
+  'khaznaCreateEntry',
+  'khaznaDownloadStudentStatement',
+  'khaznaUpdatePhone',
+  'khaznaMarkNoticeRead',
+  'khaznaSetTheme',
+  'controlAppUi',
+  'khaznaPrintPage',
+]);
+
+const MANAGER_ALLOWED_TOOLS = new Set([
+  'khaznaGetOverview',
+  'khaznaGetStudentAccount',
+  'khaznaListStudents',
+  'khaznaListTransactions',
+  'khaznaCreateEntry',
+  'khaznaCollectDues',
+  'khaznaEditEntry',
+  'khaznaVoidEntry',
+  'khaznaUnvoidEntry',
+  'khaznaPostBatch',
+  'khaznaVoidBatch',
+  'khaznaImportBulkEntries',
+  'khaznaDownloadReport',
+  'khaznaDownloadStudentStatement',
+  'khaznaUpdatePhone',
+  'khaznaMarkNoticeRead',
+  'khaznaSetTheme',
+  'khaznaNavigate',
+  'khaznaOpenInteractiveForm',
+  'controlAppUi',
+  'khaznaPrintPage',
+]);
+
 export class ToolRegistry {
-  getToolsForProfile(profile: AppProfile): Map<string, ToolDefinition> {
+  getToolsForProfile(profile: AppProfile, scope?: AccessScope): Map<string, ToolDefinition> {
     const map = new Map<string, ToolDefinition>();
     for (const def of profile.customTools || []) {
       map.set(def.name, compileDeclarativeTool(def));
@@ -1180,10 +1217,27 @@ export class ToolRegistry {
         map.set(toolName, builtin);
       }
     }
+
+    if (scope && profile.appId === 'khazna-ledger') {
+      if (scope.role === 'STUDENT') {
+        for (const name of Array.from(map.keys())) {
+          if (!STUDENT_ALLOWED_TOOLS.has(name)) {
+            map.delete(name);
+          }
+        }
+      } else if (scope.role === 'SECTOR_MANAGER') {
+        for (const name of Array.from(map.keys())) {
+          if (!MANAGER_ALLOWED_TOOLS.has(name)) {
+            map.delete(name);
+          }
+        }
+      }
+    }
+
     return map;
   }
 
-  getTool(profile: AppProfile, toolName: string): ToolDefinition | undefined {
-    return this.getToolsForProfile(profile).get(toolName);
+  getTool(profile: AppProfile, toolName: string, scope?: AccessScope): ToolDefinition | undefined {
+    return this.getToolsForProfile(profile, scope).get(toolName);
   }
 }

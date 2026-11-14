@@ -241,6 +241,7 @@ export interface DocumentChunk {
   chunkIndex: number;
   content: string;
   tokenCount: number;
+  visibility?: 'all' | 'manager' | 'admin';
   metadata?: Record<string, unknown>;
 }
 
@@ -293,6 +294,11 @@ export type ActionLogEntry = z.infer<typeof ActionLogEntrySchema>;
 export type AssistantSseEvent =
   | { type: 'status'; phase: string; label: string }
   | { type: 'token'; delta: string }
+  | { type: 'stream_reset'; reason?: string }
+  | {
+      type: 'follow_up_chips';
+      chips: Array<{ id: string; label: string; prompt: string }>;
+    }
   | {
       type: 'tool_call';
       toolName: string;
@@ -356,6 +362,7 @@ export type AssistantSseEvent =
       sources: SourceCitation[];
       actionLogId?: string;
       cached?: boolean;
+      provider?: string;
     }
   | {
       type: 'error';

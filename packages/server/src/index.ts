@@ -10,12 +10,14 @@ import { ingestAllProfiles } from './rag/retriever.ts';
 import { createVectorStore, type VectorStore } from './rag/store.ts';
 import { createActionsRouter } from './routes/actions.ts';
 import { createChatRouter } from './routes/chat.ts';
+import { createChipsRouter } from './routes/chips.ts';
 import { createIngestRouter } from './routes/ingest.ts';
 import { createTranscribeRouter } from './routes/transcribe.ts';
 import { createUploadRouter } from './routes/upload.ts';
 import { ActionLogStore } from './security/confirmation.ts';
 import { createIpRateLimiter, createUserRateLimiter, ResponseCache } from './security/limits.ts';
 import { ToolRegistry } from './tools/registry.ts';
+import { AssistantRepository } from './db/assistantRepository.ts';
 
 export interface AssistantRuntime {
   cfg: ServerConfig;
@@ -26,6 +28,7 @@ export interface AssistantRuntime {
   toolRegistry: ToolRegistry;
   actionStore: ActionLogStore;
   cache: ResponseCache;
+  repository: AssistantRepository;
 }
 
 export async function createAssistantRuntime(
@@ -41,6 +44,7 @@ export async function createAssistantRuntime(
   const toolRegistry = new ToolRegistry();
   const actionStore = new ActionLogStore();
   const cache = new ResponseCache(cfg.responseCacheTtlMs);
+  const repository = new AssistantRepository(cfg);
 
   // Automatically ingest profile docs at startup so local dev & tests have ready indices
   await ingestAllProfiles({ profiles, embedder, store: vectorStore });
@@ -54,11 +58,12 @@ export async function createAssistantRuntime(
     toolRegistry,
     actionStore,
     cache,
+    repository,
   };
 }
 
 export function mountAssistantRoutes(app: Express, runtime: AssistantRuntime): void {
-  const { cfg, profiles, embedder, vectorStore, llm, toolRegistry, actionStore, cache } = runtime;
+  const { cfg, profiles, embedder, vectorStore, llm, toolRegistry, actionStore, cache, repository } = runtime;
 
   // Dynamic per-profile CORS allowlist
   const assistantCors = cors((rawReq, callback) => {
@@ -103,6 +108,19 @@ export function mountAssistantRoutes(app: Express, runtime: AssistantRuntime): v
     });
   });
 
+  app.get('/api/assistant/debug/providers', assistantCors, (_req, res) => {
+    res.json({
+      providers: llm.chain.getDebugStatuses(),
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.use(
+    '/api/assistant',
+    assistantCors,
+    createChipsRouter({ cfg, repository })
+  );
+
   app.get('/api/profiles', (_req, res) => {
     res.json({
       profiles: profiles.listProfiles().map((p) => ({
@@ -121,7 +139,7 @@ export function mountAssistantRoutes(app: Express, runtime: AssistantRuntime): v
     ipLimiter,
     authMiddleware,
     userLimiter,
-    createChatRouter({ cfg, embedder, vectorStore, llm, toolRegistry, actionStore, cache })
+    createChatRouter({ cfg, embedder, vectorStore, llm, toolRegistry, actionStore, cache, repository })
   );
 
   app.use(
@@ -204,3 +222,9 @@ export * from './security/limits.ts';
 export * from './llm/client.ts';
 export * from './llm/prompts.ts';
 export * from './llm/agentLoop.ts';
+export * from './security/scope.ts';
+export * from './chips/pageRegistry.ts';
+export * from './routes/chips.ts';
+export * from './db/assistantRepository.ts';
+export * from './llm/providerChain.ts';
+export * from './llm/summarizer.ts';
