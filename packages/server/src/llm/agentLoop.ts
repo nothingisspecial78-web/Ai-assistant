@@ -367,18 +367,46 @@ export async function runChatAgent(params: {
   let lastActionLogId: string | undefined;
 
   for (let step = 0; step < maxSteps; step += 1) {
-    let completion = await llm.completeWithTools({
-      model: cfg.modelStrong,
-      messages: llmMessages,
-      tools: openAiTools,
-      retrievedChunks: retrieval.chunks,
-      language: detectedLang,
-    });
-    modelUsed = completion.modelUsed;
+    let completion: {
+      content: string;
+      toolCalls: Array<{ id: string; name: string; argumentsJson: string }>;
+      modelUsed: string;
+    };
+
+    const fastInferred =
+      step === 0
+        ? inferDeterministicToolCall(question, tools, attachments, context, mergedContexts)
+        : null;
+
+    if (fastInferred && FORCE_INFERRED_TOOLS.has(fastInferred.name)) {
+      completion = {
+        content: '',
+        toolCalls: [
+          {
+            id: `call_${crypto.randomUUID().slice(0, 8)}`,
+            name: fastInferred.name,
+            argumentsJson: JSON.stringify(fastInferred.args),
+          },
+        ],
+        modelUsed: 'instant-intent-router',
+      };
+      modelUsed = completion.modelUsed;
+    } else {
+      completion = await llm.completeWithTools({
+        model: cfg.modelStrong,
+        messages: llmMessages,
+        tools: openAiTools,
+        retrievedChunks: retrieval.chunks,
+        language: detectedLang,
+      });
+      modelUsed = completion.modelUsed;
+    }
 
     // Deterministic tool fallback on step 0 when offline, on local fallback, or for explicit agent action intents
     if (step === 0 && completion.toolCalls.length === 0) {
-      const inferred = inferDeterministicToolCall(question, tools, attachments, context, mergedContexts);
+      const inferred =
+        fastInferred ||
+        inferDeterministicToolCall(question, tools, attachments, context, mergedContexts);
       const shouldForceInferred =
         inferred &&
         (!llm.hasLiveProvider ||

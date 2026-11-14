@@ -209,7 +209,16 @@ export function createLlmGateway(cfg: ServerConfig): LlmGateway {
           }),
           supportsVision: true,
           mapModel: (requested) =>
-            Array.from(new Set([requested, cfg.modelFallback, cfg.modelFast].filter(Boolean))),
+            Array.from(
+              new Set(
+                [
+                  requested === 'openai/gpt-4o' ? 'openai/gpt-4o-mini' : requested,
+                  cfg.modelFast,
+                  cfg.modelFallback,
+                  'openai/gpt-4o-mini',
+                ].filter(Boolean)
+              )
+            ),
         }
       : null;
 
@@ -251,11 +260,13 @@ export function createLlmGateway(cfg: ServerConfig): LlmGateway {
   };
 
   const order: Array<'openrouter' | 'groq' | 'gemini'> =
-    cfg.llmProvider === 'groq'
-      ? ['groq', 'openrouter', 'gemini']
+    cfg.llmProvider === 'openrouter'
+      ? ['openrouter', 'groq', 'gemini']
       : cfg.llmProvider === 'gemini'
-        ? ['gemini', 'openrouter', 'groq']
-        : ['openrouter', 'groq', 'gemini'];
+        ? ['gemini', 'groq', 'openrouter']
+        : cfg.groqApiKey
+          ? ['groq', 'openrouter', 'gemini']
+          : ['openrouter', 'groq', 'gemini'];
 
   for (const name of order) {
     const built = builders[name]();
@@ -340,7 +351,7 @@ export function createLlmGateway(cfg: ServerConfig): LlmGateway {
               tools: tools.length > 0 ? tools : undefined,
               tool_choice: tools.length > 0 ? 'auto' : undefined,
               temperature: 0.1,
-              max_tokens: 1500,
+              max_tokens: 650,
             });
 
             const choice = res.choices?.[0]?.message;

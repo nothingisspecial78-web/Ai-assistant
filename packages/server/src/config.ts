@@ -54,10 +54,10 @@ export function loadConfig(overrides: Partial<ServerConfig> = {}): ServerConfig 
         : '',
     llmBaseUrl: process.env.LLM_BASE_URL || 'https://openrouter.ai/api/v1',
     modelFast: process.env.MODEL_FAST || 'openai/gpt-4o-mini',
-    modelStrong: process.env.MODEL_STRONG || 'openai/gpt-4o',
+    modelStrong: process.env.MODEL_STRONG || 'openai/gpt-4o-mini',
     modelVision: process.env.MODEL_VISION || 'openai/gpt-4o-mini',
     modelEmbedding: process.env.MODEL_EMBEDDING || 'openai/text-embedding-3-small',
-    modelFallback: process.env.MODEL_FALLBACK || 'google/gemini-2.0-flash-001',
+    modelFallback: process.env.MODEL_FALLBACK || 'openai/gpt-4o-mini',
     llmTimeoutMs: Number(process.env.LLM_TIMEOUT_MS || 25000),
     supabaseUrl: process.env.SUPABASE_URL || '',
     supabaseServiceRoleKey:
