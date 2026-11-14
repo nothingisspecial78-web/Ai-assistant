@@ -4,7 +4,7 @@
     "name": "Admin Student Financial Details Lookup",
     "role": "ADMIN",
     "passed": true,
-    "durationMs": 2799,
+    "durationMs": 1734,
     "details": "Retrieved student records matching S0125"
   },
   {
@@ -12,7 +12,7 @@
     "name": "Duplicate / Ambiguous Name Disambiguation",
     "role": "ADMIN",
     "passed": true,
-    "durationMs": 908,
+    "durationMs": 17,
     "details": "Triggered choose-one disambiguation list"
   },
   {
@@ -20,7 +20,7 @@
     "name": "Sector Manager Authorized Sector Query",
     "role": "SECTOR_MANAGER",
     "passed": true,
-    "durationMs": 12,
+    "durationMs": 717,
     "details": "Successfully returned sector summary"
   },
   {
@@ -28,7 +28,7 @@
     "name": "Sector Manager Out-of-Scope Sector Refusal",
     "role": "SECTOR_MANAGER",
     "passed": true,
-    "durationMs": 10,
+    "durationMs": 772,
     "details": "Correctly refused out-of-scope sector"
   },
   {
@@ -36,7 +36,7 @@
     "name": "Student Own Fee Records Query",
     "role": "STUDENT",
     "passed": true,
-    "durationMs": 19,
+    "durationMs": 898,
     "details": "Returned personal fee status"
   },
   {
@@ -44,7 +44,7 @@
     "name": "Student Cross-Student Isolation Protection",
     "role": "STUDENT",
     "passed": true,
-    "durationMs": 10,
+    "durationMs": 697,
     "details": "Safely refused peer student records"
   },
   {
@@ -52,7 +52,7 @@
     "name": "Super Admin Multi-Tenant College Overview",
     "role": "SUPER_ADMIN",
     "passed": true,
-    "durationMs": 10,
+    "durationMs": 843,
     "details": "Returned cross-college overview"
   },
   {
@@ -60,7 +60,7 @@
     "name": "App-Only Knowledge RAG Polite Refusal",
     "role": "STUDENT",
     "passed": true,
-    "durationMs": 6,
+    "durationMs": 4,
     "details": "Politely declined general knowledge question"
   }
 ]

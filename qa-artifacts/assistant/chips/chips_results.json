@@ -27,7 +27,7 @@
       "Campus Overview",
       "Bulk Import Excel",
       "Guide: Import Students",
-      "Download Campus PDF"
+      "Top Fee Defaulters"
     ],
     "details": "Returned 4 chips in 5ms matching role context"
   },
@@ -85,7 +85,7 @@
     "role": "STUDENT",
     "pageId": "student.dashboard",
     "passed": true,
-    "latencyMs": 8,
+    "latencyMs": 10,
     "chipCount": 4,
     "sampleChips": [
       "എന്റെ ബാക്കി തുക",
@@ -93,7 +93,7 @@
       "ഗൈഡ്: ഫീസ് പരിശോധിക്കുക",
       "സമീപകാല രസീതുകൾ"
     ],
-    "details": "Returned 4 chips in 8ms matching role context"
+    "details": "Returned 4 chips in 10ms matching role context"
   },
   {
     "id": "CHIP-TEST-07",
@@ -101,12 +101,12 @@
     "role": "PUBLIC",
     "pageId": "public.login",
     "passed": true,
-    "latencyMs": 4,
+    "latencyMs": 3,
     "chipCount": 2,
     "sampleChips": [
       "What can you do?",
       "Guide Me / Walkthrough"
     ],
-    "details": "Returned 2 chips in 4ms matching role context"
+    "details": "Returned 2 chips in 3ms matching role context"
   }
 ]

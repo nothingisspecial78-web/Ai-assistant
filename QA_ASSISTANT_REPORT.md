@@ -1,7 +1,7 @@
 # Comprehensive QA Verification Report: Embedded AI Assistant
 
-**Generated Date:** 2026-11-14T20:15:07.078Z  
-**Overall Execution Duration:** 6.1 seconds  
+**Generated Date:** 2026-11-14T20:18:39.225Z  
+**Overall Execution Duration:** 7.8 seconds  
 **Total Scenarios Verified:** 26  
 **Total Passed:** 26 (100.0%)  
 **Total Failed:** 0  
@@ -27,32 +27,32 @@ A comprehensive multi-agent QA verification suite was executed across the embedd
 ### Suite A: Data-Access & Scope Agent (`scripts/qa/agentDataAccess.ts`)
 | Test ID | Scenario Name | Role | Duration | Status | Evidence Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `DATA-SCOPE-01` | Admin Student Financial Details Lookup | `ADMIN` | 2799ms | **PASS** | Retrieved student records matching S0125 |
-| `DATA-SCOPE-02` | Duplicate / Ambiguous Name Disambiguation | `ADMIN` | 908ms | **PASS** | Triggered choose-one disambiguation list |
-| `DATA-SCOPE-03` | Sector Manager Authorized Sector Query | `SECTOR_MANAGER` | 12ms | **PASS** | Successfully returned sector summary |
-| `DATA-SCOPE-04` | Sector Manager Out-of-Scope Sector Refusal | `SECTOR_MANAGER` | 10ms | **PASS** | Correctly refused out-of-scope sector |
-| `DATA-SCOPE-05` | Student Own Fee Records Query | `STUDENT` | 19ms | **PASS** | Returned personal fee status |
-| `DATA-SCOPE-06` | Student Cross-Student Isolation Protection | `STUDENT` | 10ms | **PASS** | Safely refused peer student records |
-| `DATA-SCOPE-07` | Super Admin Multi-Tenant College Overview | `SUPER_ADMIN` | 10ms | **PASS** | Returned cross-college overview |
-| `DATA-SCOPE-08` | App-Only Knowledge RAG Polite Refusal | `STUDENT` | 6ms | **PASS** | Politely declined general knowledge question |
+| `DATA-SCOPE-01` | Admin Student Financial Details Lookup | `ADMIN` | 1734ms | **PASS** | Retrieved student records matching S0125 |
+| `DATA-SCOPE-02` | Duplicate / Ambiguous Name Disambiguation | `ADMIN` | 17ms | **PASS** | Triggered choose-one disambiguation list |
+| `DATA-SCOPE-03` | Sector Manager Authorized Sector Query | `SECTOR_MANAGER` | 717ms | **PASS** | Successfully returned sector summary |
+| `DATA-SCOPE-04` | Sector Manager Out-of-Scope Sector Refusal | `SECTOR_MANAGER` | 772ms | **PASS** | Correctly refused out-of-scope sector |
+| `DATA-SCOPE-05` | Student Own Fee Records Query | `STUDENT` | 898ms | **PASS** | Returned personal fee status |
+| `DATA-SCOPE-06` | Student Cross-Student Isolation Protection | `STUDENT` | 697ms | **PASS** | Safely refused peer student records |
+| `DATA-SCOPE-07` | Super Admin Multi-Tenant College Overview | `SUPER_ADMIN` | 843ms | **PASS** | Returned cross-college overview |
+| `DATA-SCOPE-08` | App-Only Knowledge RAG Polite Refusal | `STUDENT` | 4ms | **PASS** | Politely declined general knowledge question |
 
 ### Suite B: Role & Page-Aware Chips Agent (`scripts/qa/agentChips.ts`)
 | Test ID | Scenario Name | Role | Page ID | Latency | Status | Sample Chips Returned |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `CHIP-TEST-01` | Super Admin Platform Portal Chips | `SUPER_ADMIN` | `/super-admin` | 5ms | **PASS** | Platform Overview, Campus Overview, Colleges & Admins, Security Audit Logs |
-| `CHIP-TEST-02` | Admin Student Directory Chips | `ADMIN` | `admin.students` | 5ms | **PASS** | Campus Overview, Bulk Import Excel, Guide: Import Students, Download Campus PDF |
+| `CHIP-TEST-02` | Admin Student Directory Chips | `ADMIN` | `admin.students` | 5ms | **PASS** | Campus Overview, Bulk Import Excel, Guide: Import Students, Top Fee Defaulters |
 | `CHIP-TEST-03` | Admin Sector Management Chips | `ADMIN` | `admin.sectors` | 4ms | **PASS** | Campus Overview, Guide: Create Sector, Download Campus PDF, Unassigned Sectors |
 | `CHIP-TEST-04` | Sector Manager Ledger Chips | `SECTOR_MANAGER` | `manager.entries` | 3ms | **PASS** | Sector Total, Unpaid Students, Guide: Record Deposit, Recent Entries |
 | `CHIP-TEST-05` | Student Personal Dashboard Chips | `STUDENT` | `student.dashboard` | 3ms | **PASS** | My Balance, Why Pending Fees?, Guide: Check My Fees, Recent Receipts |
-| `CHIP-TEST-06` | Malayalam Localized Chips | `STUDENT` | `student.dashboard` | 8ms | **PASS** | എന്റെ ബാക്കി തുക, എന്തുകൊണ്ട് ഫീസ് കുടിശ്ശിക?, ഗൈഡ്: ഫീസ് പരിശോധിക്കുക, സമീപകാല രസീതുകൾ |
-| `CHIP-TEST-07` | Public Unauthenticated Sign-in Chips | `PUBLIC` | `public.login` | 4ms | **PASS** | What can you do?, Guide Me / Walkthrough |
+| `CHIP-TEST-06` | Malayalam Localized Chips | `STUDENT` | `student.dashboard` | 10ms | **PASS** | എന്റെ ബാക്കി തുക, എന്തുകൊണ്ട് ഫീസ് കുടിശ്ശിക?, ഗൈഡ്: ഫീസ് പരിശോധിക്കുക, സമീപകാല രസീതുകൾ |
+| `CHIP-TEST-07` | Public Unauthenticated Sign-in Chips | `PUBLIC` | `public.login` | 3ms | **PASS** | What can you do?, Guide Me / Walkthrough |
 
 ### Suite C: Resilience & Fallback Agent (`scripts/qa/agentResilience.ts`)
 | Test ID | Scenario Name | Status | Evidence Details |
 | :--- | :--- | :--- | :--- |
 | `RESIL-01` | Strict Sequential Fallback Chain Order (OpenRouter -> Gemini -> Groq) | **PASS** | Configured 3 providers in exact priority order: openrouter -> gemini -> groq |
 | `RESIL-02` | LLM Gateway Live Availability & Health Status | **PASS** | LLM Gateway active and responding with live provider configuration |
-| `RESIL-03` | End-to-End Chat Stream Execution via Fallback Chain | **PASS** | Successfully streamed response in 6ms without errors |
+| `RESIL-03` | End-to-End Chat Stream Execution via Fallback Chain | **PASS** | Successfully streamed response in 15ms without errors |
 
 ### Suite D: Security, RBAC & Secret Scan Agent (`scripts/qa/agentSecurity.ts`)
 | Test ID | Scenario Name | Status | Evidence Details |

@@ -15,6 +15,6 @@
     "id": "RESIL-03",
     "name": "End-to-End Chat Stream Execution via Fallback Chain",
     "passed": true,
-    "details": "Successfully streamed response in 6ms without errors"
+    "details": "Successfully streamed response in 15ms without errors"
   }
 ]
