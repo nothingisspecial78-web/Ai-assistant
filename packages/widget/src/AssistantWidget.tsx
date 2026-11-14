@@ -293,22 +293,6 @@ export function AssistantWidget({
           [position]: open ? `${panelWidth + 24}px` : '18px',
         }}
       >
-        {!open && (
-          <button
-            type="button"
-            data-testid="cursor-denoter-fab"
-            aria-pressed={inspecting}
-            aria-label={inspecting ? 'Cancel cursor denoter' : 'Select card with cursor'}
-            title="Select a card or cuboid to ask Khazna AI"
-            className={`aia-inspect-fab ${inspecting ? 'aia-active' : ''}`}
-            style={{ marginBottom: '10px' }}
-            onClick={toggleInspectMode}
-          >
-            <Crosshair size={15} />
-            <span>{inspecting ? 'Pick a card…' : 'Inspect'}</span>
-          </button>
-        )}
-
         <AssistantAvatar3D
           title={title}
           open={open}

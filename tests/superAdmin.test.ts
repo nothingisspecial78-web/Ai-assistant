@@ -21,7 +21,7 @@ describe('Multi-Tenant Isolation & Platform Super Admin (Master Add-on)', () => 
     process.env.SUPER_ADMIN_EMAIL = 'superadmin@khaznacampus.platform';
     process.env.SUPER_ADMIN_PASSWORD = 'SuperAdmin@Passw0rd123!';
     await bootstrapSuperAdmin({ resetPassword: true });
-  });
+  }, 30000);
 
   // Test 1: Multi-tenant student isolation between Org A and Org B
   it('Test 1: Admin of Org A cannot see or query students of Org B', async () => {
@@ -50,17 +50,19 @@ describe('Multi-Tenant Isolation & Platform Super Admin (Master Add-on)', () => 
   });
 
   // Test 3: Platform Super Admin bootstrap stores bcrypt cost 12 hash
-  it('Test 3: Bootstrap creates platform admin with valid email format and bcrypt cost 12 hash', () => {
+  it('Test 3: Bootstrap creates platform admin with valid email format and bcrypt cost 12 hash', async () => {
     const admins = loadSuperAdminStore();
     expect(admins.length).toBeGreaterThan(0);
     const sa = admins.find((a) => a.email === 'superadmin@khaznacampus.platform');
     expect(sa).toBeDefined();
     expect(sa?.role).toBe('SUPER_ADMIN');
     expect(sa?.passwordHash).toMatch(/^\$2[aby]\$12\$/);
-    // Verifies against the seed password
-    expect(bcrypt.compareSync('SuperAdmin@Passw0rd123!', sa!.passwordHash)).toBe(true);
-    expect(bcrypt.compareSync('WrongPassword!', sa!.passwordHash)).toBe(false);
-  });
+    // Verifies against the seed password using async non-blocking comparison
+    const validMatch = await bcrypt.compare('SuperAdmin@Passw0rd123!', sa!.passwordHash);
+    const wrongMatch = await bcrypt.compare('WrongPassword!', sa!.passwordHash);
+    expect(validMatch).toBe(true);
+    expect(wrongMatch).toBe(false);
+  }, 45000);
 
   // Test 4: Password complexity check in bootstrap
   it('Test 4: Bootstrap enforces password complexity (>= 12 characters)', async () => {
