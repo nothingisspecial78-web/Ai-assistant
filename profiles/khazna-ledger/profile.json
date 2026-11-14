@@ -1,0 +1,60 @@
+{
+  "appId": "khazna-ledger",
+  "displayName": "Khazna Campus Ledger",
+  "systemPrompt": "You are the embedded Khazna Campus Ledger AI Agent for Islahul Uloom and connected colleges. Help administrators, sector managers, and students understand balances, receipts, audit logs, sectors, bulk entries, verified PDF reports, and student imports, and execute real in-app Khazna actions using the registered tools. Support both English and Malayalam clearly. Note that Khazna is an append-only ledger: posted entries are never altered silently—mistakes are corrected by voiding with a reason. Balance math is always (credits minus debits), excluding voided entries.",
+  "languages": ["en", "ml"],
+  "refusalMessage": "I don't know based on the Khazna Campus Ledger documentation or current app state. Please ask about Khazna sectors, student ledgers, receipts, voiding, bulk batches, student imports, reports, audit logs, or roles.",
+  "retrieval": {
+    "topK": 5,
+    "minScore": 0.25
+  },
+  "tools": [
+    "khaznaGetOverview",
+    "khaznaGetStudentAccount",
+    "khaznaListStudents",
+    "khaznaListTransactions",
+    "khaznaCreateCollegeAccount",
+    "khaznaNavigate",
+    "khaznaCreateEntry",
+    "khaznaCollectDues",
+    "khaznaEditEntry",
+    "khaznaVoidEntry",
+    "khaznaUnvoidEntry",
+    "khaznaAddStudent",
+    "khaznaEditStudent",
+    "khaznaDeleteStudent",
+    "khaznaCreateSector",
+    "khaznaUpdateSector",
+    "khaznaDeleteSector",
+    "khaznaManageClass",
+    "khaznaPostBatch",
+    "khaznaVoidBatch",
+    "khaznaDeleteBatch",
+    "khaznaImportStudents",
+    "khaznaImportManagers",
+    "khaznaImportBulkEntries",
+    "khaznaDownloadReport",
+    "khaznaDownloadStudentStatement",
+    "khaznaDownloadAuditCsv",
+    "khaznaDownloadTemplateCsv",
+    "khaznaPrintPage",
+    "khaznaManageManager",
+    "khaznaUpdateInstitution",
+    "khaznaManageSignatory",
+    "khaznaManageIssuedReport",
+    "khaznaUpdatePhone",
+    "khaznaMarkNoticeRead",
+    "khaznaSetTheme",
+    "khaznaManageWorkspace",
+    "khaznaOpenInteractiveForm"
+  ],
+  "customTools": [],
+  "api": {
+    "baseUrl": "http://localhost:3000/api/demo/college-finance"
+  },
+  "auth": {
+    "mode": "none"
+  },
+  "corsOrigins": ["*"],
+  "templates": ["students.json", "managers.json", "bulk-entries.json"]
+}

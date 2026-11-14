@@ -1,0 +1,883 @@
+import crypto from 'node:crypto';
+import {
+  DEFAULT_AGENT_MAX_STEPS,
+  type AppProfile,
+  type AssistantSseEvent,
+  type ChatAttachment,
+  type ChatMessage,
+  type PersonalizationSettings,
+  type RightClickContext,
+  type SourceCitation,
+} from '@ai-assistant/core';
+import { logger, type ServerConfig } from '../config.ts';
+import { createConfirmationToken, type ActionLogStore } from '../security/confirmation.ts';
+import { detectLanguage, wrapUntrustedData } from '../security/sanitize.ts';
+import type { ResponseCache } from '../security/limits.ts';
+import { retrieveForQuery } from '../rag/retriever.ts';
+import type { Embedder } from '../rag/embedder.ts';
+import type { VectorStore } from '../rag/store.ts';
+import type { ToolRegistry } from '../tools/registry.ts';
+import { inferDeterministicToolCall, shouldUseAgentLoop } from './intentParser.ts';
+import {
+  compressScreenshotDataUrl,
+  type LlmChatMessage,
+  type LlmGateway,
+  type OpenAiToolSpec,
+} from './client.ts';
+import { buildSystemPrompt, trimHistoryToBudget } from './prompts.ts';
+
+export { inferDeterministicToolCall, shouldUseAgentLoop } from './intentParser.ts';
+
+const FORCE_INFERRED_TOOLS = new Set([
+  'addStudent',
+  'markStudentPaid',
+  'unmarkStudentPaid',
+  'createSector',
+  'addFund',
+  'importStudents',
+  'controlAppUi',
+  'addBook',
+  'borrowBook',
+  'returnBook',
+  'khaznaGetOverview',
+  'khaznaGetStudentAccount',
+  'khaznaListStudents',
+  'khaznaListTransactions',
+  'khaznaCreateCollegeAccount',
+  'khaznaNavigate',
+  'khaznaOpenInteractiveForm',
+  'khaznaCreateEntry',
+  'khaznaCollectDues',
+  'khaznaEditEntry',
+  'khaznaVoidEntry',
+  'khaznaUnvoidEntry',
+  'khaznaAddStudent',
+  'khaznaEditStudent',
+  'khaznaDeleteStudent',
+  'khaznaCreateSector',
+  'khaznaUpdateSector',
+  'khaznaDeleteSector',
+  'khaznaManageClass',
+  'khaznaPostBatch',
+  'khaznaVoidBatch',
+  'khaznaDeleteBatch',
+  'khaznaImportStudents',
+  'khaznaImportManagers',
+  'khaznaImportBulkEntries',
+  'khaznaDownloadReport',
+  'khaznaDownloadStudentStatement',
+  'khaznaDownloadAuditCsv',
+  'khaznaDownloadTemplateCsv',
+  'khaznaPrintPage',
+  'khaznaManageManager',
+  'khaznaUpdateInstitution',
+  'khaznaManageSignatory',
+  'khaznaManageIssuedReport',
+  'khaznaUpdatePhone',
+  'khaznaMarkNoticeRead',
+  'khaznaSetTheme',
+  'khaznaManageWorkspace',
+]);
+
+function redactSensitiveArgs(val: unknown): unknown {
+  if (Array.isArray(val)) return val.map(redactSensitiveArgs);
+  if (val && typeof val === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+      if (/password|secret|token/i.test(k)) {
+        out[k] = '••••••••';
+      } else {
+        out[k] = redactSensitiveArgs(v);
+      }
+    }
+    return out;
+  }
+  return val;
+}
+
+export async function runChatAgent(params: {
+  profile: AppProfile;
+  messages: ChatMessage[];
+  context?: RightClickContext;
+  contexts?: RightClickContext[];
+  attachments?: ChatAttachment[];
+  requestedLanguage?: string;
+  appState?: Record<string, unknown>;
+  personalization?: PersonalizationSettings;
+  userId: string;
+  authToken: string;
+  cfg: ServerConfig;
+  embedder: Embedder;
+  vectorStore: VectorStore;
+  llm: LlmGateway;
+  toolRegistry: ToolRegistry;
+  actionStore: ActionLogStore;
+  cache: ResponseCache;
+  emit: (event: AssistantSseEvent) => void;
+  maxSteps?: number;
+}): Promise<{
+  refusal: boolean;
+  model: string;
+  topScore: number;
+  citations: SourceCitation[];
+  latencyMs: number;
+}> {
+  const startMs = Date.now();
+  const {
+    profile,
+    messages,
+    context,
+    contexts,
+    attachments = [],
+    requestedLanguage,
+    appState,
+    personalization,
+    userId,
+    authToken,
+    cfg,
+    embedder,
+    vectorStore,
+    llm,
+    toolRegistry,
+    actionStore,
+    cache,
+    emit,
+    maxSteps = DEFAULT_AGENT_MAX_STEPS,
+  } = params;
+
+  const trimmedHistory = trimHistoryToBudget(messages);
+  const lastUserMsg = [...trimmedHistory].reverse().find((m) => m.role === 'user');
+  const question = lastUserMsg?.content || '';
+  const effectiveLangReq =
+    requestedLanguage === 'ml' || requestedLanguage === 'en'
+      ? requestedLanguage
+      : personalization?.preferredLanguage === 'ml' || personalization?.preferredLanguage === 'en'
+        ? personalization.preferredLanguage
+        : undefined;
+  const detectedLang =
+    effectiveLangReq === 'ml' || effectiveLangReq === 'en'
+      ? effectiveLangReq
+      : detectLanguage(question);
+
+  const mergedContexts =
+    contexts && contexts.length > 0 ? contexts : context ? [context] : [];
+  const imageAttachments = attachments.filter((a) => a.type === 'image' && a.dataUrl);
+  const fileAttachments = attachments.filter((a) => a.type === 'file');
+  const hasScreenshot = imageAttachments.length > 0;
+  const tools = toolRegistry.getToolsForProfile(profile);
+  const useTools = shouldUseAgentLoop(question, profile, attachments);
+
+  emit({ type: 'status', phase: 'thinking', label: 'Analyzing request & active context…' });
+
+  // 1. Short-TTL Cache lookup for plain Q&A without attachments
+  const contextKey = mergedContexts
+    .map((c) => `${c.cssSelector || ''}|${(c.text || '').slice(0, 80)}`)
+    .join(';');
+  const cacheKey =
+    !hasScreenshot && fileAttachments.length === 0 && !useTools && !appState
+      ? cache.makeKey(profile.appId, question, detectedLang, mergedContexts[0]?.routePath, contextKey)
+      : '';
+
+  if (cacheKey) {
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      emit({ type: 'source', sources: cached.sources });
+      emit({ type: 'token', delta: cached.answer });
+      const latencyMs = Date.now() - startMs;
+      emit({
+        type: 'done',
+        refusal: cached.refusal,
+        model: cached.model,
+        latencyMs,
+        sources: cached.sources,
+        cached: true,
+      });
+      return {
+        refusal: cached.refusal,
+        model: cached.model,
+        topScore: 1,
+        citations: cached.sources,
+        latencyMs,
+      };
+    }
+  }
+
+  // 2. RAG retrieval with strict appId isolation & out-of-scope guard
+  // Allow live UI element inspections and explicit agent tool commands with custom names/values
+  const isElementInspection =
+    mergedContexts.some((c) => Boolean(c.text || c.nearbyLabel || c.cssSelector)) &&
+    /\b(what does .* show|what is shown|what is this|explain.*(div|section|element|this|area|card)|describe.*(div|section|this|area|card))\b/i.test(
+      question
+    );
+
+  const inferredTool = useTools
+    ? inferDeterministicToolCall(question, tools, attachments, context, mergedContexts)
+    : null;
+
+  const hasDomainEntityAction =
+    useTools &&
+    /\b(student|students|sector|sectors|union|fund|funds|charity|grant|endowment|fee|fees|admission|book|books|loan|loans|catalog|library|tab|khazna|ledger|receipt|void|unvoid|batch|class|deposit|debit|credit|tuition|mess|fiqh|civil|ihsan|velitcham|audit|report|reports|issued|notifications|notice|profile|signatory|institution|download|export|print|pdf|excel|xlsx|csv|statement|template|phone|org|workspace|edit|invite|revoke|extend|theme|dark|light|demo|admin|manager|account|signup|sign\s*up|college|campus|password|display|overview|summary|balance|bulk|upload|stable|dues|collect|paid|status)\b/i.test(
+      question
+    );
+
+  const retrieval = await retrieveForQuery({
+    profile,
+    question: question || (hasScreenshot ? 'screenshot help' : 'import file'),
+    context,
+    contexts: mergedContexts,
+    embedder,
+    store: vectorStore,
+    bypassOutOfScopeGuard:
+      hasScreenshot ||
+      fileAttachments.length > 0 ||
+      isElementInspection ||
+      Boolean(inferredTool) ||
+      hasDomainEntityAction,
+  });
+
+  if (retrieval.refused) {
+    const refusalText = retrieval.refusalMessage || profile.refusalMessage;
+    emit({ type: 'status', phase: 'completed', label: 'Out-of-scope check complete' });
+    emit({ type: 'token', delta: refusalText });
+    const latencyMs = Date.now() - startMs;
+    emit({
+      type: 'done',
+      refusal: true,
+      model: 'guard-bypass',
+      latencyMs,
+      sources: [],
+    });
+    if (cacheKey) {
+      cache.set(cacheKey, {
+        answer: refusalText,
+        sources: [],
+        refusal: true,
+        model: 'guard-bypass',
+      });
+    }
+    return {
+      refusal: true,
+      model: 'guard-bypass',
+      topScore: retrieval.topScore,
+      citations: [],
+      latencyMs,
+    };
+  }
+
+  emit({ type: 'source', sources: retrieval.citations });
+
+  // 3. Build system prompt with untrusted-data framing
+  const systemPrompt = buildSystemPrompt({
+    profile,
+    chunks: retrieval.chunks,
+    language: detectedLang,
+    context,
+    contexts: mergedContexts,
+    hasScreenshot,
+    availableTools: Array.from(tools.keys()),
+    agentMode: useTools && !hasScreenshot,
+    appState,
+    personalization,
+  });
+
+  const llmMessages: LlmChatMessage[] = [{ role: 'system', content: systemPrompt }];
+  for (let i = 0; i < trimmedHistory.length; i += 1) {
+    const msg = trimmedHistory[i];
+    const isLastUser = i === trimmedHistory.length - 1 && msg.role === 'user';
+
+    let contentText = msg.content;
+    if (isLastUser && fileAttachments.length > 0) {
+      const fileSummary = fileAttachments
+        .map((f) => `Attached file "${f.name}" (uploadId: ${f.uploadId || 'none'}): ${f.previewSummary || ''}`)
+        .join('\n');
+      contentText = `${contentText}\n\n${wrapUntrustedData('uploaded_file_summary', fileSummary)}`;
+    }
+
+    if (isLastUser && imageAttachments.length > 0) {
+      const compressedImages = await Promise.all(
+        imageAttachments.map((img) => compressScreenshotDataUrl(img.dataUrl!))
+      );
+      llmMessages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: contentText || 'Please inspect this screenshot and help me.' },
+          ...compressedImages.map((url) => ({
+            type: 'image_url' as const,
+            image_url: { url },
+          })),
+        ],
+      });
+    } else {
+      llmMessages.push({
+        role: msg.role,
+        content: contentText,
+      });
+    }
+  }
+
+  // 4. Plain Q&A or Vision streaming path (MODEL_FAST / MODEL_VISION)
+  if (!useTools || hasScreenshot) {
+    const selectedModel = hasScreenshot ? cfg.modelVision : cfg.modelFast;
+    const { fullText, modelUsed } = await llm.streamChat({
+      model: selectedModel,
+      messages: llmMessages,
+      retrievedChunks: retrieval.chunks,
+      language: detectedLang,
+      onDelta: (delta) => emit({ type: 'token', delta }),
+    });
+
+    if (cacheKey && fullText) {
+      cache.set(cacheKey, {
+        answer: fullText,
+        sources: retrieval.citations,
+        refusal: false,
+        model: modelUsed,
+      });
+    }
+
+    const latencyMs = Date.now() - startMs;
+    emit({
+      type: 'done',
+      refusal: false,
+      model: modelUsed,
+      latencyMs,
+      sources: retrieval.citations,
+    });
+    return {
+      refusal: false,
+      model: modelUsed,
+      topScore: retrieval.topScore,
+      citations: retrieval.citations,
+      latencyMs,
+    };
+  }
+
+  // 5. Agent Tool-Calling Loop on MODEL_STRONG (max 6 steps, repeated-call guard)
+  const openAiTools: OpenAiToolSpec[] = Array.from(tools.values()).map((t) => ({
+    type: 'function',
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.jsonParameters,
+    },
+  }));
+
+  const seenCalls = new Set<string>();
+  let modelUsed = cfg.modelStrong;
+  let lastActionLogId: string | undefined;
+
+  for (let step = 0; step < maxSteps; step += 1) {
+    let completion = await llm.completeWithTools({
+      model: cfg.modelStrong,
+      messages: llmMessages,
+      tools: openAiTools,
+      retrievedChunks: retrieval.chunks,
+      language: detectedLang,
+    });
+    modelUsed = completion.modelUsed;
+
+    // Deterministic tool fallback on step 0 when offline, on local fallback, or for explicit agent action intents
+    if (step === 0 && completion.toolCalls.length === 0) {
+      const inferred = inferDeterministicToolCall(question, tools, attachments, context, mergedContexts);
+      const shouldForceInferred =
+        inferred &&
+        (!llm.hasLiveProvider ||
+          completion.modelUsed === 'local-grounded-fallback' ||
+          FORCE_INFERRED_TOOLS.has(inferred.name));
+      if (shouldForceInferred && inferred) {
+        completion = {
+          ...completion,
+          toolCalls: [
+            {
+              id: `call_${crypto.randomUUID().slice(0, 8)}`,
+              name: inferred.name,
+              argumentsJson: JSON.stringify(inferred.args),
+            },
+          ],
+        };
+      }
+    }
+
+    if (completion.toolCalls.length === 0) {
+      const answer = completion.content || 'Done.';
+      emit({ type: 'token', delta: answer });
+      const latencyMs = Date.now() - startMs;
+      emit({
+        type: 'done',
+        refusal: false,
+        model: modelUsed,
+        latencyMs,
+        sources: retrieval.citations,
+        actionLogId: lastActionLogId,
+      });
+      return {
+        refusal: false,
+        model: modelUsed,
+        topScore: retrieval.topScore,
+        citations: retrieval.citations,
+        latencyMs,
+      };
+    }
+
+    // Add assistant tool_call turn to history
+    llmMessages.push({
+      role: 'assistant',
+      content: completion.content || '',
+      tool_calls: completion.toolCalls.map((tc) => ({
+        id: tc.id,
+        type: 'function' as const,
+        function: { name: tc.name, arguments: tc.argumentsJson },
+      })),
+    });
+
+    for (const tc of completion.toolCalls) {
+      const callSignature = `${tc.name}::${tc.argumentsJson}`;
+      if (seenCalls.has(callSignature)) {
+        const stopMsg = 'Stopped agent execution to avoid repeating the identical tool call.';
+        emit({ type: 'token', delta: stopMsg });
+        const latencyMs = Date.now() - startMs;
+        emit({
+          type: 'done',
+          refusal: false,
+          model: modelUsed,
+          latencyMs,
+          sources: retrieval.citations,
+        });
+        return {
+          refusal: false,
+          model: modelUsed,
+          topScore: retrieval.topScore,
+          citations: retrieval.citations,
+          latencyMs,
+        };
+      }
+      seenCalls.add(callSignature);
+
+      const tool = tools.get(tc.name);
+      if (!tool) {
+        llmMessages.push({
+          role: 'tool',
+          tool_call_id: tc.id,
+          name: tc.name,
+          content: JSON.stringify({ error: `Tool "${tc.name}" is not enabled for app "${profile.appId}".` }),
+        });
+        continue;
+      }
+
+      let parsedArgs: Record<string, unknown> = {};
+      try {
+        parsedArgs = JSON.parse(tc.argumentsJson || '{}') as Record<string, unknown>;
+      } catch {
+        parsedArgs = {};
+      }
+
+      const validated = tool.inputSchema.safeParse(parsedArgs);
+      if (!validated.success) {
+        llmMessages.push({
+          role: 'tool',
+          tool_call_id: tc.id,
+          name: tc.name,
+          content: JSON.stringify({
+            error: 'Invalid tool arguments',
+            issues: validated.error.issues.map((i) => i.message),
+          }),
+        });
+        continue;
+      }
+
+      const cleanArgs = validated.data as Record<string, unknown>;
+      const safeArgs = redactSensitiveArgs(cleanArgs) as Record<string, unknown>;
+
+      emit({ type: 'status', phase: 'checking_permissions', label: 'Checking role & permissions…' });
+
+      // IMMEDIATE AGENT ACTIONS (UI-click triggers AND auto-executing single-record mutations with Undo support)
+      if (tool.uiTrigger || (tool.risk === 'write' && tool.autoExecute)) {
+        emit({ type: 'status', phase: 'preparing_changes', label: `Preparing ${tool.name}…` });
+        emit({
+          type: 'tool_call',
+          toolName: tool.name,
+          risk: 'write',
+          args: safeArgs,
+          status: 'running',
+        });
+
+        try {
+          emit({ type: 'status', phase: 'executing_action', label: `Executing ${tool.name}…` });
+          const result = await tool.execute(cleanArgs, {
+            appId: profile.appId,
+            profile,
+            userId,
+            authToken,
+            cfg,
+            actionStore,
+            appState,
+          });
+
+          if (!result.ok) {
+            emit({ type: 'status', phase: 'failed', label: 'Action blocked or not found' });
+            emit({
+              type: 'tool_call',
+              toolName: tool.name,
+              risk: 'write',
+              args: safeArgs,
+              status: 'failed',
+              summary: result.summary,
+            });
+            emit({ type: 'token', delta: result.summary });
+            const latencyMs = Date.now() - startMs;
+            emit({
+              type: 'done',
+              refusal: false,
+              model: modelUsed,
+              latencyMs,
+              sources: retrieval.citations,
+            });
+            return {
+              refusal: false,
+              model: modelUsed,
+              topScore: retrieval.topScore,
+              citations: retrieval.citations,
+              latencyMs,
+            };
+          }
+
+          emit({ type: 'status', phase: 'verifying_result', label: 'Verifying result…' });
+          const actionId = `act_${crypto.randomUUID()}`;
+          lastActionLogId = actionId;
+          const logEntry = {
+            id: actionId,
+            appId: profile.appId,
+            userId,
+            toolName: tool.name,
+            risk: 'write' as const,
+            status: 'executed' as const,
+            summary: result.summary,
+            args: safeArgs,
+            result: result.data,
+            createdIds: result.createdIds || [],
+            createdAt: new Date().toISOString(),
+            executedAt: new Date().toISOString(),
+          };
+          actionStore.recordImmediateAction(logEntry);
+
+          emit({
+            type: 'tool_call',
+            toolName: tool.name,
+            risk: 'write',
+            args: safeArgs,
+            status: 'completed',
+            summary: result.summary,
+          });
+          emit({
+            type: 'action_executed',
+            actionId,
+            toolName: tool.name,
+            summary: result.summary,
+            details: safeArgs,
+            canUndo: Boolean(tool.undo && (result.createdIds || []).length > 0),
+            action: logEntry,
+          });
+          if (result.uiAction) {
+            emit({ type: 'status', phase: 'locating_section', label: result.uiAction.label || 'Navigating to section…' });
+            emit({
+              type: 'ui_action',
+              actionId,
+              action: result.uiAction.action,
+              selector: result.uiAction.selector,
+              fallbackTabSelector: result.uiAction.fallbackTabSelector,
+              value: result.uiAction.value,
+              highlightSelector: result.uiAction.highlightSelector,
+              refreshApp: result.uiAction.refreshApp,
+              cursorWaypoints: result.uiAction.cursorWaypoints,
+              followUpActions: result.uiAction.followUpActions,
+              appCommand: result.uiAction.appCommand,
+              label: result.uiAction.label,
+            });
+          }
+          if (result.formRequest) {
+            emit({ type: 'form_request', form: result.formRequest });
+          }
+          emit({ type: 'status', phase: 'completed', label: 'Completed' });
+          emit({ type: 'token', delta: result.summary });
+          const latencyMs = Date.now() - startMs;
+          emit({
+            type: 'done',
+            refusal: false,
+            model: modelUsed,
+            latencyMs,
+            sources: retrieval.citations,
+            actionLogId: actionId,
+          });
+          return {
+            refusal: false,
+            model: modelUsed,
+            topScore: retrieval.topScore,
+            citations: retrieval.citations,
+            latencyMs,
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Agent action failed';
+          emit({ type: 'status', phase: 'failed', label: 'Action failed' });
+          emit({
+            type: 'tool_call',
+            toolName: tool.name,
+            risk: 'write',
+            args: safeArgs,
+            status: 'failed',
+            summary: message,
+          });
+          emit({ type: 'token', delta: `Could not complete action: ${message}` });
+          const latencyMs = Date.now() - startMs;
+          emit({
+            type: 'done',
+            refusal: false,
+            model: modelUsed,
+            latencyMs,
+            sources: retrieval.citations,
+          });
+          return {
+            refusal: false,
+            model: modelUsed,
+            topScore: retrieval.topScore,
+            citations: retrieval.citations,
+            latencyMs,
+          };
+        }
+      }
+
+      // WRITE TOOLS WITH EXPLICIT CONFIRMATION GATE (e.g. bulk spreadsheet importStudents)
+      if (tool.risk === 'write') {
+        emit({ type: 'status', phase: 'preparing_changes', label: 'Awaiting user confirmation…' });
+        const actionId = `act_${crypto.randomUUID()}`;
+        const summary = tool.summarize(safeArgs);
+        const { token, expiresAt } = createConfirmationToken(
+          {
+            actionId,
+            appId: profile.appId,
+            userId,
+            toolName: tool.name,
+            args: cleanArgs,
+          },
+          cfg.confirmationSecret
+        );
+
+        actionStore.savePendingAction(
+          {
+            id: actionId,
+            appId: profile.appId,
+            userId,
+            toolName: tool.name,
+            risk: 'write',
+            status: 'pending',
+            summary,
+            args: safeArgs,
+            createdIds: [],
+            createdAt: new Date().toISOString(),
+          },
+          cleanArgs
+        );
+
+        emit({
+          type: 'confirmation_required',
+          actionId,
+          confirmationToken: token,
+          toolName: tool.name,
+          summary,
+          details: safeArgs,
+          expiresAt,
+        });
+
+        const msg = `I have prepared the action: **${summary}**. Please review and click **Confirm** to execute.`;
+        emit({ type: 'status', phase: 'completed', label: 'Confirmation ready' });
+        emit({ type: 'token', delta: msg });
+        const latencyMs = Date.now() - startMs;
+        emit({
+          type: 'done',
+          refusal: false,
+          model: modelUsed,
+          latencyMs,
+          sources: retrieval.citations,
+          actionLogId: actionId,
+        });
+        return {
+          refusal: false,
+          model: modelUsed,
+          topScore: retrieval.topScore,
+          citations: retrieval.citations,
+          latencyMs,
+        };
+      }
+
+      // READ TOOLS run automatically with the logged-in user's token
+      emit({ type: 'status', phase: 'reading_info', label: `Reading ${tool.name}…` });
+      emit({
+        type: 'tool_call',
+        toolName: tool.name,
+        risk: 'read',
+        args: safeArgs,
+        status: 'running',
+      });
+
+      try {
+        const result = await tool.execute(cleanArgs, {
+          appId: profile.appId,
+          profile,
+          userId,
+          authToken,
+          cfg,
+          actionStore,
+          appState,
+        });
+
+        const logId = `act_${crypto.randomUUID()}`;
+        lastActionLogId = logId;
+        actionStore.recordImmediateAction({
+          id: logId,
+          appId: profile.appId,
+          userId,
+          toolName: tool.name,
+          risk: 'read',
+          status: 'executed',
+          summary: result.summary,
+          args: safeArgs,
+          result: result.data,
+          createdIds: [],
+          createdAt: new Date().toISOString(),
+          executedAt: new Date().toISOString(),
+        });
+
+        emit({
+          type: 'tool_call',
+          toolName: tool.name,
+          risk: 'read',
+          args: safeArgs,
+          status: result.ok ? 'completed' : 'failed',
+          summary: result.summary,
+        });
+
+        if (result.formRequest) {
+          emit({ type: 'status', phase: 'completed', label: 'Input form ready' });
+          emit({ type: 'form_request', form: result.formRequest });
+          emit({ type: 'token', delta: result.summary });
+          const latencyMs = Date.now() - startMs;
+          emit({
+            type: 'done',
+            refusal: false,
+            model: modelUsed,
+            latencyMs,
+            sources: retrieval.citations,
+            actionLogId: logId,
+          });
+          return {
+            refusal: false,
+            model: modelUsed,
+            topScore: retrieval.topScore,
+            citations: retrieval.citations,
+            latencyMs,
+          };
+        }
+
+        if (result.uiAction) {
+          emit({ type: 'status', phase: 'locating_section', label: result.uiAction.label || 'Opening section…' });
+          emit({
+            type: 'ui_action',
+            actionId: logId,
+            action: result.uiAction.action,
+            selector: result.uiAction.selector,
+            fallbackTabSelector: result.uiAction.fallbackTabSelector,
+            value: result.uiAction.value,
+            highlightSelector: result.uiAction.highlightSelector,
+            refreshApp: result.uiAction.refreshApp,
+            cursorWaypoints: result.uiAction.cursorWaypoints,
+            followUpActions: result.uiAction.followUpActions,
+            appCommand: result.uiAction.appCommand,
+            label: result.uiAction.label,
+          });
+          emit({ type: 'status', phase: 'completed', label: 'Completed' });
+          emit({ type: 'token', delta: result.summary });
+          const latencyMs = Date.now() - startMs;
+          emit({
+            type: 'done',
+            refusal: false,
+            model: modelUsed,
+            latencyMs,
+            sources: retrieval.citations,
+            actionLogId: logId,
+          });
+          return {
+            refusal: false,
+            model: modelUsed,
+            topScore: retrieval.topScore,
+            citations: retrieval.citations,
+            latencyMs,
+          };
+        }
+
+        // If deterministic read tool executed cleanly (or returned explicit access denied), surface verified summary
+        if (!llm.hasLiveProvider || result.ok === false || tool.name === 'khaznaGetStudentAccount' || tool.name === 'khaznaGetOverview') {
+          emit({ type: 'status', phase: result.ok ? 'completed' : 'failed', label: result.ok ? 'Completed' : 'Access denied' });
+          emit({ type: 'token', delta: result.summary });
+          const latencyMs = Date.now() - startMs;
+          emit({
+            type: 'done',
+            refusal: false,
+            model: modelUsed,
+            latencyMs,
+            sources: retrieval.citations,
+            actionLogId: logId,
+          });
+          return {
+            refusal: false,
+            model: modelUsed,
+            topScore: retrieval.topScore,
+            citations: retrieval.citations,
+            latencyMs,
+          };
+        }
+
+        llmMessages.push({
+          role: 'tool',
+          tool_call_id: tc.id,
+          name: tool.name,
+          content: wrapUntrustedData(`tool_${tool.name}`, JSON.stringify(result.data)),
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Tool execution failed';
+        logger.warn({ err, tool: tool.name, appId: profile.appId }, 'Read tool execution failed');
+        emit({
+          type: 'tool_call',
+          toolName: tool.name,
+          risk: 'read',
+          args: cleanArgs,
+          status: 'failed',
+          summary: message,
+        });
+        llmMessages.push({
+          role: 'tool',
+          tool_call_id: tc.id,
+          name: tc.name,
+          content: JSON.stringify({ error: message }),
+        });
+      }
+    }
+  }
+
+  const maxStepMsg = 'Reached the maximum agent reasoning steps (6). Please refine your request.';
+  emit({ type: 'token', delta: maxStepMsg });
+  const latencyMs = Date.now() - startMs;
+  emit({
+    type: 'done',
+    refusal: false,
+    model: modelUsed,
+    latencyMs,
+    sources: retrieval.citations,
+    actionLogId: lastActionLogId,
+  });
+  return {
+    refusal: false,
+    model: modelUsed,
+    topScore: retrieval.topScore,
+    citations: retrieval.citations,
+    latencyMs,
+  };
+}
