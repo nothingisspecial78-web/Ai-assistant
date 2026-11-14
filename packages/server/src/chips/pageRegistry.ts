@@ -37,19 +37,31 @@ export interface RankedChip {
 // Map pathname to canonical pageId
 export function resolvePageId(pathname: string): string {
   const p = pathname.toLowerCase().replace(/\/$/, '') || '/';
+
+  // Super Admin platform routes
+  if (p.startsWith('/super-admin')) return 'super_admin.dashboard';
+
+  // Admin routes
   if (p === '/admin' || p === '/admin/dashboard') return 'admin.dashboard';
   if (p.startsWith('/admin/students')) return 'admin.students';
   if (p.startsWith('/admin/sectors')) return 'admin.sectors';
   if (p.startsWith('/admin/ledger')) return 'admin.ledger';
   if (p.startsWith('/admin/reports')) return 'admin.reports';
   if (p.startsWith('/admin/batches')) return 'admin.batches';
-  if (p.startsWith('/admin/settings')) return 'admin.settings';
+  if (p.startsWith('/admin/settings') || p.startsWith('/admin/institution')) return 'admin.settings';
 
+  // Sector Manager routes: /m/:sectorSlug/...
+  if (p.startsWith('/m/')) {
+    const parts = p.split('/').filter(Boolean); // e.g. ['m', 'dept-fiqh', 'ledger']
+    const subRoute = parts[2] || '';
+    if (subRoute === 'ledger' || subRoute === 'entries') return 'manager.entries';
+    if (subRoute === 'students') return 'manager.students';
+    if (subRoute === 'bulk' || subRoute === 'batches') return 'manager.batches';
+    return 'manager.dashboard';
+  }
   if (p === '/m' || p === '/m/dashboard') return 'manager.dashboard';
-  if (p.startsWith('/m/students')) return 'manager.students';
-  if (p.startsWith('/m/entries')) return 'manager.entries';
-  if (p.startsWith('/m/batches')) return 'manager.batches';
 
+  // Student routes: /app/...
   if (p === '/app' || p === '/app/dashboard') return 'student.dashboard';
   if (p.startsWith('/app/ledger')) return 'student.ledger';
   if (p.startsWith('/app/receipts')) return 'student.receipts';
@@ -294,6 +306,42 @@ export const CHIP_REGISTRY: ChipDef[] = [
   // SUPER ADMIN: Dashboard
   // -------------------------------------------------------------
   {
+    id: 'superadmin.dashboard.overview',
+    pageId: 'super_admin.dashboard',
+    role: 'SUPER_ADMIN',
+    priority: 105,
+    icon: 'Globe',
+    label: { en: 'Platform Overview', ml: 'പ്ലാറ്റ്‌ഫോം അവലോകനം' },
+    prompt: {
+      en: 'Show global platform overview across all colleges, total volume, and registered students',
+      ml: 'എല്ലാ കോളേജുകളുടെയും ആകെ സാമ്പത്തിക കണക്കുകൾ കാണിക്കുക',
+    },
+  },
+  {
+    id: 'superadmin.dashboard.organizations',
+    pageId: 'super_admin.dashboard',
+    role: 'SUPER_ADMIN',
+    priority: 95,
+    icon: 'Building',
+    label: { en: 'Colleges & Admins', ml: 'കോളേജുകളുടെ വിവരങ്ങൾ' },
+    prompt: {
+      en: 'List all onboarded colleges, their active admins, and status',
+      ml: 'എല്ലാ കോളേജുകളുടെയും അഡ്മിൻമാരുടെയും വിവരങ്ങൾ കാണിക്കുക',
+    },
+  },
+  {
+    id: 'superadmin.dashboard.audit-logs',
+    pageId: 'super_admin.dashboard',
+    role: 'SUPER_ADMIN',
+    priority: 90,
+    icon: 'Shield',
+    label: { en: 'Security Audit Logs', ml: 'സെക്യൂരിറ്റി ഓഡിറ്റ് ലോഗുകൾ' },
+    prompt: {
+      en: 'Show recent platform security audit logs and administrative actions',
+      ml: 'ഏറ്റവും പുതിയ പ്ലാറ്റ്‌ഫോം ഓഡിറ്റ് ലോഗുകൾ പരിശോധിക്കുക',
+    },
+  },
+  {
     id: 'admin.dashboard.institution-overview',
     pageId: 'admin.dashboard',
     role: 'SUPER_ADMIN',
@@ -467,6 +515,9 @@ export function getRankedChips(params: {
     // Page check: match pageId or global
     if (chip.pageId === pageId || chip.pageId === 'global') return true;
     if (chip.id === 'admin.dashboard.unassigned-sectors' && (pageId === 'admin.sectors' || pageId === 'admin.dashboard')) return true;
+    if (scope.role === 'SECTOR_MANAGER' && (pageId === 'manager.entries' || pageId === 'manager.dashboard') && (chip.pageId === 'manager.dashboard' || chip.pageId === 'manager.entries')) return true;
+    if (scope.role === 'SUPER_ADMIN' && (pageId === 'super_admin.dashboard' || pageId === 'admin.dashboard') && (chip.pageId === 'super_admin.dashboard' || chip.pageId === 'admin.dashboard')) return true;
+    if (scope.role === 'ADMIN' && pageId.startsWith('admin.') && chip.pageId === 'admin.dashboard') return true;
     return false;
   });
 

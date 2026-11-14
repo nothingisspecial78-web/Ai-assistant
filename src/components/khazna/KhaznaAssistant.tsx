@@ -1380,6 +1380,41 @@ export function KhaznaAssistant() {
     return `demo:ADMIN:${cleanAdminEmail}:::${orgId}`;
   }, [pathname]);
 
+  const roleSuggestions = useMemo(() => {
+    if (computedIdentity.role === 'SUPER_ADMIN') {
+      return [
+        'Platform overview across all colleges',
+        'List onboarded colleges & admins',
+        'Show recent security audit logs',
+        'Check multi-tenant isolation status',
+      ];
+    }
+    if (computedIdentity.role === 'STUDENT') {
+      return [
+        'How much fee do I owe right now?',
+        'Show my transactions and fee summary',
+        'Download my fee statement PDF',
+        'What are the dues for my sector?',
+      ];
+    }
+    if (computedIdentity.role === 'SECTOR_MANAGER') {
+      return [
+        'List students with pending fees in my sector',
+        'Show summary of collections and balance',
+        'Recent ledger entries and receipts',
+        'Post batch fee for my class',
+      ];
+    }
+    // Admin default
+    return [
+      'Download Class Report PDF',
+      'Add student',
+      'Unassigned sectors report',
+      'Record ₹1500 credit deposit for Safwan K. in Office',
+      'Post ₹500 Study Tour Fee batch for Fiqh 2',
+    ];
+  }, [computedIdentity.role]);
+
   // Keep verification QR pages uncluttered for printing/auditing
   if (pathname.startsWith('/v/')) {
     return null;
@@ -1397,13 +1432,7 @@ export function KhaznaAssistant() {
         getAuthToken={getAuthToken}
         getAppState={getAppState}
         onAppCommand={onAppCommand}
-        suggestions={[
-          'Download Class Report PDF',
-          'Add student',
-          'Record ₹1500 credit deposit for Safwan K. in Office',
-          'Post ₹500 Study Tour Fee batch for Fiqh 2',
-          'Open Admin demo dashboard',
-        ]}
+        suggestions={roleSuggestions}
         theme={{
           primaryColor: '#f97316',
           accentColor: '#f97316',

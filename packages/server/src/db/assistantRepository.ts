@@ -282,13 +282,21 @@ export class AssistantRepository {
   async getChipUsages(userId: string, pageId: string): Promise<ChipUsage[]> {
     if (this.client && !this.schemaMissing) {
       try {
-        const { data, error } = await this.client
+        const queryPromise = this.client
           .from('assistant_chip_usage')
           .select('*')
           .eq('user_id', userId)
           .eq('page_id', pageId);
 
-        if (!error && Array.isArray(data)) {
+        const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: new Error('Timeout') }), 800)
+        );
+
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+
+        if (error) {
+          this.schemaMissing = true;
+        } else if (Array.isArray(data)) {
           return data.map((d) => ({
             userId: d.user_id,
             chipId: d.chip_id,
@@ -299,7 +307,7 @@ export class AssistantRepository {
           }));
         }
       } catch {
-        // fallback
+        this.schemaMissing = true;
       }
     }
 

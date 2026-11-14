@@ -141,7 +141,7 @@ export function AssistantWidget({
     if (!open) return;
     const pageId = getPageId ? getPageId() : 'global';
     const lang = personalization.preferredLanguage || 'en';
-    const cacheKey = `${pageId}:${lang}`;
+    const cacheKey = `${pageId}:${lang}:${userKey || 'default'}`;
 
     if (chipsCacheRef.current.has(cacheKey)) {
       setDynamicChips(chipsCacheRef.current.get(cacheKey) || []);
@@ -153,7 +153,7 @@ export function AssistantWidget({
       try {
         const token = getAuthToken ? await getAuthToken() : '';
         const headers: Record<string, string> = { 'x-app-id': appId };
-        if (token) headers.Authorization = `Bearer ${token}`;
+        if (token) headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
 
         const res = await fetch(
           `${apiUrl.replace(/\/$/, '')}/api/assistant/chips?pageId=${encodeURIComponent(pageId)}&lang=${encodeURIComponent(lang)}`,
@@ -169,13 +169,13 @@ export function AssistantWidget({
       } catch {
         // fallback to default suggestions
       }
-    }, 150);
+    }, 50);
 
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [open, getPageId, getAuthToken, apiUrl, appId, personalization.preferredLanguage]);
+  }, [open, getPageId, getAuthToken, apiUrl, appId, personalization.preferredLanguage, userKey]);
 
   // Reset transient overlays when switching appId or userKey
   useEffect(() => {
@@ -440,6 +440,69 @@ export function AssistantWidget({
             }}
             onActionCompleted={onActionCompleted}
           />
+
+          {/* Persistent Role-Aware Prompt Chips Dock (always accessible even when conversation has messages) */}
+          {(dynamicChips.length > 0 || (suggestions && suggestions.length > 0)) && (
+            <div
+              className="aia-chips-dock"
+              style={{
+                display: 'flex',
+                gap: '6px',
+                padding: '6px 12px',
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
+                WebkitOverflowScrolling: 'touch',
+                borderTop: '1px solid var(--aia-hairline, rgba(255,255,255,0.08))',
+                background: 'var(--aia-surface, rgba(15,23,42,0.95))',
+                flexShrink: 0,
+              }}
+            >
+              {(dynamicChips.length > 0
+                ? dynamicChips
+                : (suggestions || []).map((s, idx) => ({ id: `sug-${idx}`, label: s, prompt: s }))
+              ).map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  className="aia-suggestion-chip-pill"
+                  title={chip.prompt}
+                  onClick={() => {
+                    if (chip.id && !chip.id.startsWith('sug-')) {
+                      const pageId = getPageId ? getPageId() : 'global';
+                      void fetch(`${apiUrl.replace(/\/$/, '')}/api/assistant/chips/click`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chipId: chip.id, pageId }),
+                      }).catch(() => {});
+                    }
+                    void sendMessage({
+                      text: chip.prompt,
+                      contexts: pendingContexts.length > 0 ? pendingContexts : undefined,
+                    });
+                    setPendingContexts([]);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '4px 10px',
+                    borderRadius: '9999px',
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    whiteSpace: 'nowrap',
+                    background: 'var(--aia-inset, rgba(255,255,255,0.06))',
+                    border: '1px solid var(--aia-hairline, rgba(255,255,255,0.12))',
+                    color: 'var(--aia-text, #f8fafc)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span style={{ color: 'var(--aia-primary, #f97316)', fontSize: '10px' }}>✦</span>
+                  <span>{chip.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <Composer
             disabled={isStreaming}
