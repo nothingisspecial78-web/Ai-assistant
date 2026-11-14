@@ -450,7 +450,11 @@
     border-bottom: 1px solid var(--hairline);
     white-space: nowrap;
   }
-  & tbody tr { transition: background-color 120ms; }
+  & tbody tr {
+    transition: background-color 120ms;
+    content-visibility: auto;
+    contain-intrinsic-size: 0 49px;
+  }
   & thead th { background-color: oklch(0.208 0.042 265.8 / 0.025); }
   & tbody tr:hover { background-color: color-mix(in oklab, var(--primary) 5%, transparent); }
   & tbody tr:last-child td { border-bottom: 0; }

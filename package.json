@@ -23,7 +23,12 @@
     "seed:multi-tenant-test": "node node_modules/tsx/dist/cli.mjs scripts/seedMultiTenantTest.ts",
     "avatar:inspect": "node node_modules/tsx/dist/cli.mjs scripts/inspectAvatar.ts",
     "guides:check": "node node_modules/tsx/dist/cli.mjs scripts/checkGuides.ts",
-    "seed:guide-test": "node node_modules/tsx/dist/cli.mjs scripts/seedGuideTest.ts"
+    "seed:guide-test": "node node_modules/tsx/dist/cli.mjs scripts/seedGuideTest.ts",
+    "perf:nav": "node node_modules/tsx/dist/cli.mjs scripts/perfNav.ts",
+    "perf:scroll": "node node_modules/tsx/dist/cli.mjs scripts/perfScroll.ts",
+    "perf:api": "node node_modules/tsx/dist/cli.mjs scripts/perfApi.ts",
+    "perf:bundle": "node node_modules/tsx/dist/cli.mjs scripts/perfBundle.ts",
+    "qa:all": "npm run perf:bundle && npm run perf:api && npm run perf:scroll && npm run perf:nav"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -59,6 +64,7 @@
     "@tanstack/react-query": "^5.107.1",
     "@tanstack/react-router": "^1.170.46",
     "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.3.0",
@@ -70,6 +76,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "compression": "^1.8.2",
     "cors": "^2.8.6",
     "date-fns": "^4.4.0",
     "dotenv": "^17.2.3",
@@ -115,6 +122,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
+    "playwright-core": "^1.65.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2"

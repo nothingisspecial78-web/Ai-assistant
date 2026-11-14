@@ -47,7 +47,7 @@ function createContactShadowTexture(): THREE.CanvasTexture {
   return tex;
 }
 
-export function AssistantAvatar3D({
+function AssistantAvatar3DComponent({
   title,
   open,
   thinking = false,
@@ -605,3 +605,14 @@ export function AssistantAvatar3D({
     </button>
   );
 }
+
+export const AssistantAvatar3D = React.memo(AssistantAvatar3DComponent, (prev, next) => {
+  return (
+    prev.open === next.open &&
+    prev.thinking === next.thinking &&
+    prev.celebrateTick === next.celebrateTick &&
+    prev.accentColor === next.accentColor &&
+    prev.primaryColor === next.primaryColor &&
+    prev.title === next.title
+  );
+});

@@ -449,4 +449,8 @@ export class GuideAvatarController {
       this.renderer = null;
     }
   }
+
+  destroy(): void {
+    this.dispose();
+  }
 }

@@ -166,4 +166,8 @@ export class TargetResolver {
       this.timeoutId = null;
     }
   }
+
+  destroy(): void {
+    this.cancel();
+  }
 }

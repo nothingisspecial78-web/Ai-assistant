@@ -1415,6 +1415,17 @@ export function KhaznaAssistant() {
     ];
   }, [computedIdentity.role]);
 
+  const getPageId = useCallback(() => pathname, [pathname]);
+  const widgetTheme = useMemo(
+    () => ({
+      primaryColor: '#f97316',
+      accentColor: '#f97316',
+      primaryTextColor: '#ffffff',
+      position: 'right' as const,
+    }),
+    []
+  );
+
   // Keep verification QR pages uncluttered for printing/auditing
   if (pathname.startsWith('/v/')) {
     return null;
@@ -1428,17 +1439,12 @@ export function KhaznaAssistant() {
         userKey={computedIdentity.userKey}
         userLabel={computedIdentity.userLabel}
         title="Khazna AI Agent"
-        getPageId={() => pathname}
+        getPageId={getPageId}
         getAuthToken={getAuthToken}
         getAppState={getAppState}
         onAppCommand={onAppCommand}
         suggestions={roleSuggestions}
-        theme={{
-          primaryColor: '#f97316',
-          accentColor: '#f97316',
-          primaryTextColor: '#ffffff',
-          position: 'right',
-        }}
+        theme={widgetTheme}
       />
     </AssistantErrorBoundary>
   );

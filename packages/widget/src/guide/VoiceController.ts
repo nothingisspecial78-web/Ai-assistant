@@ -64,6 +64,10 @@ export class VoiceController {
     this.options.onSpeakEnd?.();
   }
 
+  destroy(): void {
+    this.stop();
+  }
+
   /**
    * Speaks the given text using browser SpeechSynthesis with English/Malayalam voice selection,
    * falling back to server TTS if no Malayalam voice exists.

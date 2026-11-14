@@ -1,0 +1,96 @@
+{
+  "totalJsKb": 3609,
+  "totalGzipJsKb": 1041,
+  "initialJsKb": 708,
+  "initialGzipJsKb": 184,
+  "assets": [
+    {
+      "file": "vendor-docs-BZA03Awe.js",
+      "sizeBytes": 940846,
+      "sizeKb": 919,
+      "gzipBytes": 288368,
+      "gzipKb": 282,
+      "isInitial": false
+    },
+    {
+      "file": "index-949kcChe.js",
+      "sizeBytes": 724940,
+      "sizeKb": 708,
+      "gzipBytes": 188919,
+      "gzipKb": 184,
+      "isInitial": true
+    },
+    {
+      "file": "vendor-three-DOr19wtM.js",
+      "sizeBytes": 552355,
+      "sizeKb": 539,
+      "gzipBytes": 136077,
+      "gzipKb": 133,
+      "isInitial": false
+    },
+    {
+      "file": "pdf-YwugTw7Y.js",
+      "sizeBytes": 444231,
+      "sizeKb": 434,
+      "gzipBytes": 132487,
+      "gzipKb": 129,
+      "isInitial": false
+    },
+    {
+      "file": "vendor-charts-IssM1pMX.js",
+      "sizeBytes": 377080,
+      "sizeKb": 368,
+      "gzipBytes": 108070,
+      "gzipKb": 106,
+      "isInitial": false
+    },
+    {
+      "file": "vendor-framework-C_IbHLCK.js",
+      "sizeBytes": 316559,
+      "sizeKb": 309,
+      "gzipBytes": 100175,
+      "gzipKb": 98,
+      "isInitial": false
+    },
+    {
+      "file": "vendor-motion-Bm0JnBdb.js",
+      "sizeBytes": 161941,
+      "sizeKb": 158,
+      "gzipBytes": 54237,
+      "gzipKb": 53,
+      "isInitial": false
+    },
+    {
+      "file": "index.es-CYG2T20n.js",
+      "sizeBytes": 151423,
+      "sizeKb": 148,
+      "gzipBytes": 48528,
+      "gzipKb": 47,
+      "isInitial": false
+    },
+    {
+      "file": "vendor-icons-DFvp8_wC.js",
+      "sizeBytes": 25703,
+      "sizeKb": 25,
+      "gzipBytes": 8404,
+      "gzipKb": 8,
+      "isInitial": false
+    },
+    {
+      "file": "rolldown-runtime-XKyaHtl9.js",
+      "sizeBytes": 726,
+      "sizeKb": 1,
+      "gzipBytes": 429,
+      "gzipKb": 0,
+      "isInitial": false
+    },
+    {
+      "file": "__vite-browser-external-BDfy7Drd.js",
+      "sizeBytes": 103,
+      "sizeKb": 0,
+      "gzipBytes": 117,
+      "gzipKb": 0,
+      "isInitial": false
+    }
+  ]
+}

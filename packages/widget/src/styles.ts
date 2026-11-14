@@ -269,6 +269,8 @@ export function ensureWidgetStyles(): void {
       height: 118px;
       display: block;
       position: relative;
+      contain: strict;
+      will-change: transform;
     }
     .aia-avatar-btn.aia-avatar-open .aia-avatar-stage {
       width: 92px;

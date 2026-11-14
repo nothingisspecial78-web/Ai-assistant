@@ -1,0 +1,47 @@
+[
+  {
+    "name": "Health Check",
+    "p50": 4,
+    "p95": 164,
+    "p99": 164,
+    "avg": 12,
+    "min": 2,
+    "max": 164
+  },
+  {
+    "name": "Prompt Chips API (Student)",
+    "p50": 3,
+    "p95": 828,
+    "p99": 828,
+    "avg": 44,
+    "min": 2,
+    "max": 828
+  },
+  {
+    "name": "Prompt Chips API (Admin)",
+    "p50": 3,
+    "p95": 10,
+    "p99": 10,
+    "avg": 4,
+    "min": 2,
+    "max": 10
+  },
+  {
+    "name": "Guide Search API",
+    "p50": 3,
+    "p95": 6,
+    "p99": 6,
+    "avg": 4,
+    "min": 2,
+    "max": 6
+  },
+  {
+    "name": "Guide Catalog List",
+    "p50": 6,
+    "p95": 20,
+    "p99": 20,
+    "avg": 7,
+    "min": 3,
+    "max": 20
+  }
+]

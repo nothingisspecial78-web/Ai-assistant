@@ -209,7 +209,7 @@ function StudentsPage() {
                   {rows.map((s, i) => {
                     const b = balances.get(s.id);
                     return (
-                      <motion.tr key={s.id} {...reveal(i)} className="cursor-pointer" onClick={() => setViewing(s)}>
+                      <motion.tr key={s.id} {...(i < 12 ? reveal(i) : {})} className="cursor-pointer" onClick={() => setViewing(s)}>
                         <td>
                           <div className="flex items-center gap-3">
                             <Avatar name={s.name} size={32} />

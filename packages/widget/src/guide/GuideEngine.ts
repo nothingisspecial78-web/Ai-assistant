@@ -336,8 +336,26 @@ export class GuideEngine {
   public destroy(): void {
     this.clearTimers();
     this.cleanupStep();
-    this.targetResolver.destroy();
-    this.voiceController.destroy();
-    this.avatarController.destroy();
+    try {
+      if (this.targetResolver && typeof (this.targetResolver as any).cancel === 'function') {
+        (this.targetResolver as any).cancel();
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      if (this.voiceController && typeof (this.voiceController as any).stop === 'function') {
+        (this.voiceController as any).stop();
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      if (this.avatarController && typeof (this.avatarController as any).dispose === 'function') {
+        (this.avatarController as any).dispose();
+      }
+    } catch {
+      // ignore
+    }
   }
 }

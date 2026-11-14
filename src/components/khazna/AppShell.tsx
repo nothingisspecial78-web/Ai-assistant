@@ -528,9 +528,10 @@ export function AppShell({ role, sectorSlug, children }: { role: Role; sectorSlu
         <main className="min-w-0 flex-1">
           <motion.div
             key={pathname}
-            initial={entering ? { opacity: 0, y: 28, scale: 0.97, filter: "blur(14px)" } : { opacity: 0, x: 36, filter: "blur(6px)" }}
-            animate={{ opacity: 1, x: 0, y: 0, scale: 1, filter: "blur(0px)", transitionEnd: { filter: "none" } }}
-            transition={entering ? { duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            style={{ willChange: "transform, opacity" }}
+            initial={entering ? { opacity: 0, y: 16 } : { opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            transition={entering ? { duration: 0.25, ease: [0.16, 1, 0.3, 1] } : { duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
             onAnimationComplete={() => entering && setEntering(false)}
           >
             {children}

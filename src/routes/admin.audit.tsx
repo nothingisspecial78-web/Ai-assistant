@@ -154,10 +154,10 @@ function AuditPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((a) => {
+                  {rows.map((a, idx) => {
                     const Icon = AUDIT_ICON[a.action];
                     return (
-                      <motion.tr {...reveal()} key={a.id}>
+                      <motion.tr {...(idx < 12 ? reveal() : {})} key={a.id}>
                         <td>
                           <div className="text-foreground num">{formatDate(a.at)}</div>
                           <div className="text-xs text-subtle num">{formatTime(a.at)}</div>

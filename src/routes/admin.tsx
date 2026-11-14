@@ -2,6 +2,14 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { AppShell } from "@/components/khazna/AppShell";
 import { useKhazna } from "@/lib/khazna/store";
 
+function AdminLayout() {
+  return (
+    <AppShell role="admin">
+      <Outlet />
+    </AppShell>
+  );
+}
+
 export const Route = createFileRoute("/admin")({
   beforeLoad: () => {
     const role = useKhazna.getState().currentRole;
@@ -15,9 +23,5 @@ export const Route = createFileRoute("/admin")({
       throw redirect({ to: "/app" });
     }
   },
-  component: () => (
-    <AppShell role="admin">
-      <Outlet />
-    </AppShell>
-  ),
+  component: AdminLayout,
 });

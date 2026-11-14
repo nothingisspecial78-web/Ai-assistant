@@ -234,10 +234,10 @@ function LedgerPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((t) => {
+                  {rows.map((t, idx) => {
                     const st = byId.get(t.studentId);
                     return (
-                      <motion.tr {...reveal(0, 0, t.voided ? 0.55 : 1)} key={t.id}>
+                      <motion.tr {...(idx < 12 ? reveal(0, 0, t.voided ? 0.55 : 1) : {})} key={t.id}>
                         <td className="num text-muted-foreground">{formatDate(t.date)}</td>
                         <td className="font-mono text-xs text-muted-foreground">{t.receiptNo}</td>
                         <td>
