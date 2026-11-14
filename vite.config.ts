@@ -11,7 +11,9 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, 'src'),
         '@ai-assistant/core': path.resolve(__dirname, 'packages/core/src/index.ts'),
         '@ai-assistant/widget': path.resolve(__dirname, 'packages/widget/src/index.ts'),
+        'react-is': path.resolve(__dirname, 'node_modules/react-is'),
       },
+      dedupe: ['react', 'react-dom', 'react-is'],
     },
     optimizeDeps: {
       include: ['recharts', 'react-is'],

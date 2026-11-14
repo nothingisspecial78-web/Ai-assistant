@@ -7,7 +7,7 @@ import {
   useLocation,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import campusBackdrop from "@/assets/campus-clean.jpg.asset.json";
 import { KhaznaAssistant } from "@/components/khazna/KhaznaAssistant";
@@ -36,35 +36,69 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
-  console.error(error);
+  console.error("[RootErrorComponent] Caught runtime error:", error);
   const router = useRouter();
+  const [showDetails, setShowDetails] = useState(false);
+
+  const handleHardReset = () => {
+    try {
+      sessionStorage.removeItem("khazna_super_admin_token");
+      sessionStorage.removeItem("khazna_super_admin_user");
+    } catch {
+      // ignore
+    }
+    router.invalidate();
+    window.location.href = "/";
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
+      <div className="max-w-lg text-center">
+        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+          <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Something went wrong while rendering this section. You can try refreshing or reset to the home view.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+
+        <div className="mt-6 flex flex-wrap justify-center gap-2.5">
           <button
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
           >
             Try again
           </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          <button
+            onClick={handleHardReset}
+            className="inline-flex items-center justify-center rounded-xl border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
-          </a>
+            Reset & Go Home
+          </button>
         </div>
+
+        {error && (
+          <div className="mt-6 text-left">
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showDetails ? "Hide technical details ↑" : "Show technical details ↓"}
+            </button>
+            {showDetails && (
+              <pre className="mt-2 max-h-40 overflow-auto rounded-xl bg-black/40 p-3 text-xs text-red-400 font-mono border border-white/10 text-left">
+                {String(error.stack || error.message || error)}
+              </pre>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

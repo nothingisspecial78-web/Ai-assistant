@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useRouter } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { AssistantWidget } from '../../../packages/widget/src/index.ts';
+import { AssistantErrorBoundary } from './AssistantErrorBoundary';
 import { downloadCSV } from '@/lib/khazna/download';
 import {
   downloadCSVReport,
@@ -1334,29 +1335,31 @@ export function KhaznaAssistant() {
   }
 
   return (
-    <AssistantWidget
-      appId="khazna-ledger"
-      apiUrl=""
-      userKey={sessionIdentity.userKey}
-      userLabel={sessionIdentity.userLabel}
-      title="Khazna AI Agent"
-      getPageId={() => pathname}
-      getAuthToken={getAuthToken}
-      getAppState={getAppState}
-      onAppCommand={onAppCommand}
-      suggestions={[
-        'Download Class Report PDF',
-        'Add student',
-        'Record ₹1500 credit deposit for Safwan K. in Office',
-        'Post ₹500 Study Tour Fee batch for Fiqh 2',
-        'Open Admin demo dashboard',
-      ]}
-      theme={{
-        primaryColor: '#f97316',
-        accentColor: '#f97316',
-        primaryTextColor: '#ffffff',
-        position: 'right',
-      }}
-    />
+    <AssistantErrorBoundary>
+      <AssistantWidget
+        appId="khazna-ledger"
+        apiUrl=""
+        userKey={sessionIdentity.userKey}
+        userLabel={sessionIdentity.userLabel}
+        title="Khazna AI Agent"
+        getPageId={() => pathname}
+        getAuthToken={getAuthToken}
+        getAppState={getAppState}
+        onAppCommand={onAppCommand}
+        suggestions={[
+          'Download Class Report PDF',
+          'Add student',
+          'Record ₹1500 credit deposit for Safwan K. in Office',
+          'Post ₹500 Study Tour Fee batch for Fiqh 2',
+          'Open Admin demo dashboard',
+        ]}
+        theme={{
+          primaryColor: '#f97316',
+          accentColor: '#f97316',
+          primaryTextColor: '#ffffff',
+          position: 'right',
+        }}
+      />
+    </AssistantErrorBoundary>
   );
 }
