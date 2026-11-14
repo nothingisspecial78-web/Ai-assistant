@@ -234,6 +234,9 @@ export function useChatStream({
     const headers: Record<string, string> = {
       'x-app-id': appId,
     };
+    if (threadKey) {
+      headers['x-thread-id'] = threadKey;
+    }
     if (getAuthToken) {
       const token = await getAuthToken();
       if (token) {
@@ -241,7 +244,7 @@ export function useChatStream({
       }
     }
     return headers;
-  }, [appId, getAuthToken]);
+  }, [appId, getAuthToken, threadKey]);
 
   const executeChatTurn = useCallback(
     async (
@@ -321,6 +324,7 @@ export function useChatStream({
             language: resolvedLanguage,
             personalization,
             appState: getAppState?.(),
+            conversationId: threadKey || 'default',
           }),
           signal: controller.signal,
         });

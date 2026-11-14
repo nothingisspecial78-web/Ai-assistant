@@ -38,43 +38,80 @@ export function KhaznaAssistant() {
   const adminEmail = useKhazna((s) => s.college.adminEmail);
   const adminName = useKhazna((s) => s.college.adminName);
   const students = useKhazna((s) => s.students);
+  const sectors = useKhazna((s) => s.sectors);
+  const managers = useKhazna((s) => s.managers);
 
   const computedIdentity = useMemo(() => {
-    const identity =
-      currentRole === 'student'
-        ? meStudentId || 'student'
-        : currentRole === 'admin'
-          ? adminEmail || 'admin'
-          : managerSector || 'manager';
+    // 1. Super Admin platform portal (/super-admin)
+    const isSuperAdminRoute = pathname.startsWith('/super-admin');
+    const saToken = typeof window !== 'undefined' ? sessionStorage.getItem('khazna_super_admin_token') : null;
+    const saUserRaw = typeof window !== 'undefined' ? sessionStorage.getItem('khazna_super_admin_user') : null;
+    let saEmail = 'superadmin@khaznacampus.platform';
+    if (saUserRaw) {
+      try {
+        const parsed = JSON.parse(saUserRaw);
+        if (parsed.email) saEmail = parsed.email;
+      } catch {
+        // ignore JSON parse error
+      }
+    }
 
-    let label = adminName || 'Admin';
+    if (isSuperAdminRoute || saToken) {
+      return {
+        role: 'SUPER_ADMIN' as const,
+        userKey: `platform:super_admin:${saEmail}`,
+        userLabel: `Super Admin (${saEmail})`,
+      };
+    }
+
+    // 2. Student role (isolated by organization and student ID)
     if (currentRole === 'student') {
-      const stu = students.find((s) => s.id === meStudentId);
-      label = stu ? `${stu.name} (${stu.id})` : 'Student';
-    } else if (currentRole === 'manager') {
-      label = `Manager (${managerSector || 'Sector'})`;
+      const currentStudent = students.find((s) => s.id === meStudentId) || null;
+      const studentId = currentStudent?.id || meStudentId || 'S0125';
+      const studentLabel = currentStudent ? `${currentStudent.name} (${studentId})` : `Student (${studentId})`;
+      return {
+        role: 'STUDENT' as const,
+        userKey: `${activeOrgId}:student:${studentId}`,
+        userLabel: studentLabel,
+      };
     }
 
+    // 3. Sector Manager role (isolated by organization, active sector, and manager ID)
+    if (currentRole === 'manager') {
+      const routeSectorMatch = pathname.match(/^\/m\/([^/]+)/);
+      const activeSector = routeSectorMatch ? routeSectorMatch[1] : managerSector || sectors[0]?.slug || 'dept-fiqh';
+      const sectorObj = sectors.find((s) => s.slug === activeSector);
+      const assignedManager = managers?.find((m) => m.sectors?.includes(activeSector));
+      const managerId = assignedManager?.id || assignedManager?.email || activeSector;
+      const managerName = assignedManager?.name || 'Manager';
+      const sectorName = sectorObj?.name || activeSector;
+      return {
+        role: 'SECTOR_MANAGER' as const,
+        userKey: `${activeOrgId}:manager:${activeSector}:${managerId}`,
+        userLabel: `${managerName} (Manager · ${sectorName})`,
+      };
+    }
+
+    // 4. College Admin role (each college tenant and admin account has completely isolated history)
+    const cleanAdminEmail = (adminEmail || 'admin@islahululoom.edu').trim().toLowerCase();
+    const collegeName = adminName || 'Admin';
     return {
-      userKey: `${activeOrgId}:${currentRole}:${identity}`,
-      userLabel: label,
+      role: 'ADMIN' as const,
+      userKey: `${activeOrgId}:admin:${cleanAdminEmail}`,
+      userLabel: `${collegeName} (${cleanAdminEmail})`,
     };
-  }, [activeOrgId, adminEmail, adminName, currentRole, managerSector, meStudentId, students]);
-
-  const suppressIdentitySwapRef = useRef(false);
-  const [sessionIdentity, setSessionIdentity] = useState(computedIdentity);
-
-  useEffect(() => {
-    if (suppressIdentitySwapRef.current) {
-      suppressIdentitySwapRef.current = false;
-      return;
-    }
-    setSessionIdentity((prev) =>
-      prev.userKey === computedIdentity.userKey && prev.userLabel === computedIdentity.userLabel
-        ? prev
-        : computedIdentity
-    );
-  }, [computedIdentity]);
+  }, [
+    activeOrgId,
+    adminEmail,
+    adminName,
+    currentRole,
+    managerSector,
+    managers,
+    meStudentId,
+    pathname,
+    sectors,
+    students,
+  ]);
 
   const getAppState = useCallback(() => {
     const st = useKhazna.getState();
@@ -311,7 +348,6 @@ export function KhaznaAssistant() {
   const onAppCommand = useCallback(
     (command: string, payload: Record<string, unknown>) => {
       const st = useKhazna.getState();
-      const beforeIdentityKey = `${st.activeOrgId}:${st.currentRole}:${st.managerSector}:${st.meStudentId}`;
 
       switch (command) {
         case 'SIGNUP_COLLEGE': {
@@ -1299,35 +1335,50 @@ export function KhaznaAssistant() {
           break;
       }
 
-      if (
-        command !== 'SWITCH_ORG' &&
-        command !== 'CREATE_ORG' &&
-        command !== 'DELETE_ORG' &&
-        command !== 'SIGNUP_COLLEGE'
-      ) {
-        const afterSt = useKhazna.getState();
-        const afterIdentityKey = `${afterSt.activeOrgId}:${afterSt.currentRole}:${afterSt.managerSector}:${afterSt.meStudentId}`;
-        if (afterIdentityKey !== beforeIdentityKey) {
-          suppressIdentitySwapRef.current = true;
-        }
-      }
     },
     [router]
   );
 
   const getAuthToken = useCallback(() => {
+    const isSuperAdminRoute = pathname.startsWith('/super-admin');
+    const saToken = typeof window !== 'undefined' ? sessionStorage.getItem('khazna_super_admin_token') : null;
+    if (isSuperAdminRoute || saToken) {
+      if (saToken) return `Bearer ${saToken}`;
+      const saUserRaw = typeof window !== 'undefined' ? sessionStorage.getItem('khazna_super_admin_user') : null;
+      let saEmail = 'superadmin@khaznacampus.platform';
+      if (saUserRaw) {
+        try {
+          const parsed = JSON.parse(saUserRaw);
+          if (parsed.email) saEmail = parsed.email;
+        } catch {
+          // ignore
+        }
+      }
+      return `demo:SUPER_ADMIN:${saEmail}:::platform`;
+    }
+
     const st = useKhazna.getState();
     const role = st.currentRole;
-    const userId =
-      role === 'student'
-        ? st.meStudentId || 'S0125'
-        : role === 'admin'
-          ? st.college.adminEmail || 'admin'
-          : st.managerSector || 'dept-fiqh';
-    const sectorId = st.managerSector || 'dept-fiqh';
-    const studentId = st.meStudentId || 'S0125';
-    return `demo:${role}:${userId}:${sectorId}:${studentId}`;
-  }, []);
+    const orgId = st.activeOrgId || 'demo';
+
+    if (role === 'student') {
+      const studentId = st.meStudentId || 'S0125';
+      const studentSector = 'dept-fiqh';
+      return `demo:STUDENT:${studentId}:${studentSector}:${studentId}:${orgId}`;
+    }
+
+    if (role === 'manager') {
+      const routeSectorMatch = pathname.match(/^\/m\/([^/]+)/);
+      const activeSector = routeSectorMatch ? routeSectorMatch[1] : st.managerSector || 'dept-fiqh';
+      const assignedManager = st.managers?.find((m) => m.sectors?.includes(activeSector));
+      const managerId = assignedManager?.id || assignedManager?.email || activeSector;
+      return `demo:SECTOR_MANAGER:${managerId}:${activeSector}::${orgId}`;
+    }
+
+    // Admin role
+    const cleanAdminEmail = (st.college.adminEmail || 'admin@islahululoom.edu').trim().toLowerCase();
+    return `demo:ADMIN:${cleanAdminEmail}:::${orgId}`;
+  }, [pathname]);
 
   // Keep verification QR pages uncluttered for printing/auditing
   if (pathname.startsWith('/v/')) {
@@ -1339,8 +1390,8 @@ export function KhaznaAssistant() {
       <AssistantWidget
         appId="khazna-ledger"
         apiUrl=""
-        userKey={sessionIdentity.userKey}
-        userLabel={sessionIdentity.userLabel}
+        userKey={computedIdentity.userKey}
+        userLabel={computedIdentity.userLabel}
         title="Khazna AI Agent"
         getPageId={() => pathname}
         getAuthToken={getAuthToken}

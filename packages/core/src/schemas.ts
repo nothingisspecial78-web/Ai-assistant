@@ -150,6 +150,7 @@ export const ChatRequestSchema = z.object({
   language: z.string().max(10).optional(),
   appState: z.record(z.string(), z.unknown()).optional(),
   personalization: PersonalizationSettingsSchema.optional(),
+  conversationId: z.string().optional(),
 });
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
